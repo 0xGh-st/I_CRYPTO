@@ -2,13 +2,13 @@
 <br/>
 <hr/>
 > * OTP 기기를 생성하기 위해 
-> > 1. OTP 기기라고 여길 새로운 디렉토리를 만든다. ex) mkdir OTPMachine1
-> > > 2. OTPChip 디렉토리에서 make 명령어를 수행
-> > > 3. createOTPMachine 디렉토리에서 make 명령어를 수행
-> > > > 4. createOTPMachine 디렉토리에서 make test 명령어를 수행
-> > > > > 5. 이 때 프로그램은 otp 기계 디렉토리 이름을 입력 받는다.(1번에서 만든 디렉토리 이름 입력)
-> > > > > > 6. 5번을 수행 후 1번에서 만든 디렉토리에 들어가면 otpChip, serialNumberCard.txt, otpHD.txt가 생성되어있다.
-> > > > > > > 7. 해당 디렉토리에서 ./otpChip 명령어를 수행하면 otp가 생성되는 것을 확인할 수 있다.(q를 입력하면 종료, 그 외 문자 입력시 다시 출력)
+>> 1. OTP 기기라고 여길 새로운 디렉토리를 만든다. ex) mkdir OTPMachine1
+>>> 2. OTPChip 디렉토리에서 make 명령어를 수행
+>>> 3. createOTPMachine 디렉토리에서 make 명령어를 수행
+>>>> 4. createOTPMachine 디렉토리에서 make test 명령어를 수행
+>>>>> 5. 이 때 프로그램은 otp 기계 디렉토리 이름을 입력 받는다.(1번에서 만든 디렉토리 이름 입력)
+>>>>>> 6. 5번을 수행 후 1번에서 만든 디렉토리에 들어가면 otpChip, serialNumberCard.txt, otpHD.txt가 생성되어있다.
+>>>>>>> 7. 해당 디렉토리에서 ./otpChip 명령어를 수행하면 otp가 생성되는 것을 확인할 수 있다.(q를 입력하면 종료, 그 외 문자 입력시 다시 출력)
 <hr/>
 > * 생성된 OTP를 검증하는 방법
 > > 1. OTP 기기를 정상적으로 생성했을 경우 Bank 디렉토리에 있는 ServerDB에 해당 기기에 대한 정보가 쓰여져 있다.
