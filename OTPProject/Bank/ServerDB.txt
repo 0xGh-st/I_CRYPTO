@@ -1,0 +1,7 @@
+***SerialNum||KeyLength||Key||OTPDigit||LifeTime||Mode||EXTRACT_START_INDEX||EXTRACT_SIZE||OFFSET***
+
+validTime  30
+
+
+
+

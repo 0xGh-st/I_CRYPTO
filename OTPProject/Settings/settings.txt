@@ -1,0 +1,7 @@
+serialNumDigit 6
+keyLength 32
+otpDigit 6
+lifeTime 30
+mode 1
+EXTRACT_SIZE 3
+EXTRACT_START_INDEX 0
