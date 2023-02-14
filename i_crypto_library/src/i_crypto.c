@@ -53,7 +53,7 @@ typedef struct I_CIPHER_CTX{
 }I_CIPHER_CTX; 
 
 I_LOCAL int enc_ecb_to_cbc(int 	    p_cipher_id, //enc cbc_using_ecb
-	AES_KEY* p_key
+	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,
 	uint8_t* p_output,
@@ -73,22 +73,12 @@ I_LOCAL int enc_ecb_to_cbc(int 	    p_cipher_id, //enc cbc_using_ecb
 
 	//마지막 블록 전
 	while ((int)dataIndex <= ((int)p_inputlength - (int)blocklength)) {
-		if (dataIndex == 0) {//first enc...Ek(p ^ iv)
-			ret = AES_ecb_encrypt(block, ecb_output, &p_key, AES_ENCRYPT);
-			if (ret != 0) {
-				printf("enc_ecb_to_cbc %d\n", ret);
-				return ret;
-			}
-		}
+		if (dataIndex == 0)//first enc...Ek(p ^ iv)
+			AES_ecb_encrypt(block, ecb_output, p_key, AES_ENCRYPT);
 		else {//after first enc.... Ek(P(i) ^ C(i-1))
-			for (int i = dataIndex; i < blocklength + dataIndex; i++) {//plain_text xor pre_enc_data
+			for (int i = dataIndex; i < blocklength + dataIndex; i++)//plain_text xor pre_enc_data
 				block[i % blocklength] = ecb_output[i % blocklength] ^ p_input[i];  //i%blocklength = 0~15
-			}
-			AES_ecb_encrypt(block, ecb_output, &p_key, AES_ENCRYPT);
-			if (ret != 0) {
-				printf("enc_ecb_to_cbc %d\n", ret);
-				return ret;
-			}
+			AES_ecb_encrypt(block, ecb_output, p_key, AES_ENCRYPT);
 		}
 		for (int i = dataIndex; i < blocklength + dataIndex; i++)//put ecb_enc_data to output
 			p_output[i] = ecb_output[i % blocklength];
@@ -116,14 +106,9 @@ I_LOCAL int dec_ecb_to_cbc(int 	    p_cipher_id, //dec cbc_using_ecb
 
 	//Pi = D(C(i)) ^ C(i-1)
 	while ((int)dataIndex < p_inputlength) {
-		for (int i = dataIndex; i < blocklength + dataIndex; i++) {
+		for (int i = dataIndex; i < blocklength + dataIndex; i++)
 			block[i % blocklength] = p_input[i];  //i%blocklength = 0~15
-		}
-		ret = AES_ecb_encrypt(block, ecb_output, p_key, AES_DECRYPT);
-		if (ret != 0) {
-			printf("dec_ecb_to_cbc %d\n", ret);
-			return ret;
-		}
+		AES_ecb_encrypt(block, ecb_output, p_key, AES_DECRYPT);
 		//xor
 		for (int i = dataIndex; i < blocklength + dataIndex; i++) {
 			if (dataIndex == 0)//첫블록이면 iv와 xor
@@ -157,11 +142,7 @@ I_LOCAL int enc_ctr_mode(int 	    p_cipher_id,
 
 	//마지막 블록 전까지
 	for (int i = 0; i < blockNum; i++) {
-		ret = AES_ecb_encrypt(counter, ecb_output, p_key, AES_ENCRYPT)
-		if (ret != 0) {
-			print_result("enc_ctr_mode", ret);
-			return ret;
-		}
+		AES_ecb_encrypt(counter, ecb_output, p_key, AES_ENCRYPT);
 		for (int j = dataIndex; j < blocklength + dataIndex; j++)
 			p_output[j] = ecb_output[j % blocklength] ^ p_input[j];
 		(*((int*)counter))++;
@@ -189,11 +170,7 @@ I_LOCAL int dec_ctr_mode(int 	    p_cipher_id,
 	uint32_t	 lastBlockLength = p_inputlength % blocklength;
 
 	for (int i = 0; i < blockNum; i++) {
-		ret = AES_ecb_encrypt(counter, ecb_output, p_key, AES_DECRYPT);
-		if (ret != 0) {
-			print_result("dec_ctr_mode", ret);
-			return ret;
-		}
+		AES_ecb_encrypt(counter, ecb_output, p_key, AES_DECRYPT);
 		for (int j = dataIndex; j < blocklength + dataIndex; j++)
 			p_output[j] = ecb_output[j % blocklength] ^ p_input[j];
 		(*((int*)counter))++;
@@ -254,21 +231,13 @@ I_EXPORT int i_enc(int p_cipher_id,
 			else//즉 input_length가 blocklength 16보다 작을 경우
 				block[i] ^= p_param->iv[i];
 		}
-		ret = AES_ecb_encrypt(block, lastBlockpreBlock, p_key, AES_ENCRYPT);
-		if (ret != 0) {
-			print_result("i_enc", ret);
-			return ret;
-		}
+		AES_ecb_encrypt(block, lastBlockpreBlock, p_key, AES_ENCRYPT);
 		for (int i = 0; i < blocklength; i++)
 			p_output[*p_outputlength + i] = lastBlockpreBlock[i];
 
 		break;
 	case I_CIPHER_MODE_CTR:
-		ret = AES_ecb_encrypt(param->iv, lastBlockpreBlock, p_key, AES_ENCRYPT);
-		if (ret != 0) {
-			print_result("i_enc", ret);
-			return ret;
-		}
+		AES_ecb_encrypt(p_param->iv, lastBlockpreBlock, p_key, AES_ENCRYPT);
 		(*((int*)(p_param->iv)))++;
 		for (int i = 0; i < blocklength; i++)
 			p_output[*p_outputlength + i] = block[i] ^ lastBlockpreBlock[i];
@@ -278,19 +247,19 @@ I_EXPORT int i_enc(int p_cipher_id,
 	*p_outputlength += blocklength;
 
 	//print_result
-	printf("\n##======================  i_enc start   ======================##\n");
+	printf("\n##======================  enc start   ======================##\n");
 	hexdump("input", p_input, p_inputlength);
-	printf(" *----------------------         edge_enc()         ------------------------\n");
-	print_result("i_enc", ret);
+	printf(" *----------------------         i_enc()         ------------------------\n");
+	printf("i_enc %d \n", ret);
 	hexdump("output", p_output, *p_outputlength);
-	printf("##======================    i_enc end    ======================##\n");
+	printf("##======================    enc end    ======================##\n");
 
 	return ret;
 }
 
 I_EXPORT int i_dec(int p_cipher_id,
-	uint8_t* p_key,
-	EDGE_CIPHER_PARAMETERS* p_param,
+	AES_KEY* p_key,
+	I_CIPHER_PARAMETERS* p_param,
 	uint8_t* p_input, uint32_t p_inputlength,
 	uint8_t* p_output, uint32_t* p_outputlength) {
 
@@ -304,20 +273,20 @@ I_EXPORT int i_dec(int p_cipher_id,
 	uint8_t		 lastBlockpreBlock[16];
 	uint8_t		 padding_value = 0;
 
-	switch (p_param->m_mode) {
-	case EDGE_CIPHER_MODE_CBC:
-		ret = dec_ecb_to_cbc_pkcs5(p_cipher_id, p_key, p_input, p_inputlength, p_output, p_outputlength, p_param->iv, p_param->ivlength);
+	switch (p_param->mode) {
+	case I_CIPHER_MODE_CBC:
+		ret = dec_ecb_to_cbc(p_cipher_id, p_key, p_input, p_inputlength, p_output, p_outputlength, p_param->iv, p_param->ivlength);
 		if (ret != 0) {
-			print_result("i_dec", ret);
+			printf("i_dec %d\n", ret);
 			return ret;
 		}
 		break;
-	case EDGE_CIPHER_MODE_CTR:
+	case I_CIPHER_MODE_CTR:
 		//In the CTR Mode, iv is counter
 		(*((int*)p_param->iv)) -= (blockNum - 1);//enc과정에서 카운터가 증가한 값만큼 빼기
 		ret = dec_ctr_mode(p_cipher_id, p_key, p_input, p_inputlength, p_output, p_outputlength, p_param->iv, p_param->ivlength);
 		if (ret != 0) {
-			print_result("i_dec", ret);
+			printf("i_dec %d", ret);
 			return ret;
 		}
 		break;
@@ -328,19 +297,19 @@ I_EXPORT int i_dec(int p_cipher_id,
 	for (int i = 0; i < padding_value; i++) {
 		if (p_output[*p_outputlength - 1 - i] != padding_value) {//패딩 값에 대한 유효성 검증(ex)if 키가 바뀌었다면 패딩 값이 달라져 에러)
 			ret = -1;
-			print_result("i_dec", ret);
+			printf("i_dec %d\n", ret);
 			return ret;
 		}
 	}
 	*p_outputlength -= p_output[*p_outputlength - 1];
 
 	//print_result
-	printf("\n##======================  i_dec start   ======================##\n");
+	printf("\n##======================  dec start   ======================##\n");
 	hexdump("input", p_input, p_inputlength);
-	printf(" *----------------------         edge_dec()         ------------------------\n");
-	print_result("i_dec", ret);
+	printf(" *----------------------         i_dec()         ------------------------\n");
+	printf("i_dec %d\n", ret);
 	hexdump("output", p_output, *p_outputlength);
-	printf("##======================    i_dec end    ======================##\n");
+	printf("##======================    dec end    ======================##\n");
 
 	return ret;
 }

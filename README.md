@@ -1,18 +1,16 @@
-# YBKim's OTP Project
+# GHOST CRYPTO
 
 
-* OTP 기기를 생성하기 위해 
-> 1. OTP 기기라고 여길 새로운 디렉토리를 만든다. ex) mkdir OTPMachine1
-> > 2. OTPChip 디렉토리에서 make 명령어를 수행
-> > > 3. createOTPMachine 디렉토리에서 make 명령어를 수행
-> > > > 4. createOTPMachine 디렉토리에서 make test 명령어를 수행
-> > > > > 5. 이 때 프로그램은 otp 기계 디렉토리 이름을 입력 받는다.(1번에서 만든 디렉토리 이름 입력)
-> > > > > > 6. 5번을 수행 후 1번에서 만든 디렉토리에 들어가면 otpChip, serialNumberCard.txt, otpHD.txt가 생성되어있다.
-> > > > > > > 7. 해당 디렉토리에서 ./otpChip 명령어를 수행하면 otp가 생성되는 것을 확인할 수 있다.(q를 입력하면 종료, 그 외 문자 입력시 다시 출력)
+* 이 repository는 secucen 인턴 생활동안 배웠던 지식들을 토대로 만들어진 코드들의 저장소  입니다.
+> 1. 블록암호 운용모드를 구현
+> > 2. TLS방식을 모방한 암호화된 소켓 통신 구현
+> > > 3. OTP 생성과 검증 구현
+> > > > 4. 모든 코드는 직접 구현하였으며 필요한 암호화 관련 함수는 openssl을 사용합니다.
+> > > > > 5. 많은 가르침을 주셨던 secucen 수석님께 깊은 감사의 말씀을 드립니다.
 <hr/>
 
 
-* 생성된 OTP를 검증하는 방법
+* i_crypto_library
 > 1. OTP 기기를 정상적으로 생성했을 경우 Bank 디렉토리에 있는 ServerDB에 해당 기기에 대한 정보가 쓰여져 있다.
 > > 2. Bank 디렉토리에서 make 명령어 수행
 > > > 3. Bank 디렉토리에서 make test 명령어 수행

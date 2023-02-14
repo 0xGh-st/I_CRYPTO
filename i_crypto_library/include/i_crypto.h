@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <openssl.aes.h>
+#include <openssl/aes.h>
 #endif
 #define I_EXPORT __attribute__ ((visibility("default")))
 #define I_LOCAL  __attribute__ ((visibility("hidden")))
@@ -37,7 +37,7 @@ typedef struct I_CIPHER_CTX I_CIPHER_CTX;
 typedef struct I_CIPHER_PARAMETERS{
 	int mode;
 	uint8_t iv[16];
-	uint32_t ivlength[16];
+	uint32_t ivlength;
 } I_CIPHER_PARAMETERS;
 
 /////////////////////////////////////header of function///////////////////////////////////////////////////
@@ -54,17 +54,18 @@ typedef struct I_CIPHER_PARAMETERS{
 * @return int 성공시 0 실패시 그 외
 */
 I_EXPORT int i_enc(int p_cipherId,
-	uint8_t* p_key, uint32_t p_keyLen,
-	EDGE_CIPHER_PARAMETERS* p_param,
+	AES_KEY* p_key,
+	I_CIPHER_PARAMETERS* p_param,
 	uint8_t* p_input, uint32_t p_inputLen,
 	uint8_t* p_output, uint32_t* p_outputLen);
 
 I_EXPORT int i_dec(int p_cipherId,
-	uint8_t* p_key, uint32_t p_keyLen,
-	EDGE_CIPHER_PARAMETERS* p_param,
+	AES_KEY* p_key, 
+	I_CIPHER_PARAMETERS* p_param,
 	uint8_t* p_input, uint32_t p_inputLen,
 	uint8_t* p_output, uint32_t* p_outputLen);
-
+	
+/*
 I_EXPORT I_CIPHER_CTX* i_ctx_new();
 I_EXPORT void i_ctx_reset(I_CIPHER_CTX* p_context);
 I_EXPORT void i_ctx_free(I_CIPHER_CTX* p_context);
@@ -74,3 +75,4 @@ I_EXPORT int i_enc_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p
 I_EXPORT int i_dec_init(I_CIPHER_CTX* p_context, const int p_cipher_id, uint8_t* p_key, uint32_t p_keylength, const EDGE_CIPHER_PARAMETERS* p_param);
 I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_inputlength, uint8_t* p_output, uint32_t* p_outputlength);
 I_EXPORT int i_dec_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p_outputlength, uint32_t* p_paddingLength);
+*/
