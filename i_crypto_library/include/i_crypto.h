@@ -5,7 +5,6 @@
 */
 #ifndef __I_SYMMETRIC_H__
 #define __I_SYMMETRIC_H__
-#include "edge_crypto.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -22,10 +21,25 @@ typedef unsigned int uint32_t;
 */
 I_EXPORT void hexdump(const char* title, void* mem, unsigned int len);
 
+#define I_CIPHER_ID 0
+#define I_CIPHER_ID_AES128 I_CIPHER_ID + 1
+
+typedef enum {
+    I_CIPHER_MODE_CBC                                    = 1, // 블록암호 운용모드 CBC    
+    I_CIPHER_MODE_CTR                                         // 블록암호 운용모드 CTR  
+} I_CIPHER_MODE;
+
 /**
 * @brief init_update_final을 위해 상태 정보를 저장하기 위한 구조체
 */
 typedef struct I_CIPHER_CTX I_CIPHER_CTX;
+
+typedef struct I_CIPHER_PARAMETERS{
+	int mode;
+	uint8_t iv[16];
+	uint32_t ivlength[16];
+} I_CIPHER_PARAMETERS;
+
 /////////////////////////////////////header of function///////////////////////////////////////////////////
 //keyword 'i' is ybkim's signature
 
