@@ -118,25 +118,42 @@ int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode) {
 
 	param.mode = blockmode;
 
+	//암복호화 키 생성
 	if(AES_set_encrypt_key(zeroKey, 128, &encKey) < 0){
-		printf("key 생성 오류\n");
+		printf("encKey 생성 오류\n");
 		return 0;
 	}
 	if(AES_set_decrypt_key(zeroKey, 128, &decKey) < 0){
-		printf("key 생성 오류\n");
+		printf("decKey 생성 오류\n");
 		return 0;
 	}
+	
 	printf("\n\n===============================i_enc_dec_sample_start===================================\n\n");
+	
+	//기존 openssl을 이용한 암복호화 예시
 	ret = origin_sample(cipher_id, &encKey, &decKey, p_input, p_inputlength, output, &outputlength, param.iv, param.ivlength, blockmode);
 	if(ret != 0) return ret;
-
-	printf("\n\n==================================================================\n\n");
-	ret = i_enc(cipher_id, &encKey, &param, p_input, p_inputlength, output2, &output2length);
-	if (ret != 0) return ret;
 	printf("\n\n==================================================================\n\n");
 	
-	ret = i_dec(cipher_id, &decKey, &param, output2, output2length, decdata, &decdatalength);
+	void *ctx = NULL;
+	ctx = i_ctx_new();
+	i_enc_init(ctx, I_CIPHER_ID_AES128, zeroKey, &param);
+	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
+	printf("=============================i_enc_update===========================\n");
+	ret = i_enc_update(ctx, p_input, p_inputlength, output2, &output2length);
 	if (ret != 0) return ret;
+	hexdump("output", output2, output2length);
+	printf("\n\n==================================================================\n\n");
+
+	// //openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
+	// ret = i_enc(cipher_id, &encKey, &param, p_input, p_inputlength, output2, &output2length);
+	// if (ret != 0) return ret;
+	// printf("\n\n==================================================================\n\n");
+	
+	// //openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 복호화
+	// ret = i_dec(cipher_id, &decKey, &param, output2, output2length, decdata, &decdatalength);
+	// if (ret != 0) return ret;
+	
 	printf("\n=================================i_enc_dec_sample_end=====================================\n\n\n\n\n\n");
 
 	return ret;
