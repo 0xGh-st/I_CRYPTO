@@ -407,11 +407,13 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 				p_context->param.iv[i] = p_output[*p_outputlength + i];
 			break;
 		case I_CIPHER_MODE_CTR:
+			printf("test...\n");
 			//CTR mode -> counter부터 암호화
 			AES_ecb_encrypt(p_context->param.iv, p_output + *p_outputlength, &(p_context->key), AES_ENCRYPT);
 			if (p_context->bufferSize == blocklength){
 				for(int i=0;i<blocklength;i++)
 					p_output[i] ^= p_context->buffer[i];
+				p_context->bufferSize = 0;
 			}
 			else{
 				for(int i=0;i<blocklength;i++)
@@ -515,7 +517,6 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 			remainDataStartIndex++;
 		}
 	}
-
 	while (p_context->bufferSize == blocklength || remainLength >= 16) {//버퍼가 가득 찼을 경우
 		switch (p_context->param.mode) {
 		case I_CIPHER_MODE_CBC:
@@ -543,6 +544,7 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 			if (p_context->bufferSize == blocklength){//우선 버퍼가 찼으면 버퍼부터 복호화
 				for(int i=0;i<blocklength;i++)
 					p_output[i] ^= p_context->buffer[i];
+				p_context->bufferSize = 0;
 			}
 			else{
 				for(int i=0;i<blocklength;i++)

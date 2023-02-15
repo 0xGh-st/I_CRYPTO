@@ -47,7 +47,7 @@ int main(void) {
 
 	//sample
 	ret = i_enc_dec_sample(input, inputlength, I_CIPHER_MODE_CTR);
-	ret = i_init_update_final_sample(input, inputlength, I_CIPHER_MODE_CBC);
+	ret = i_init_update_final_sample(input, inputlength, I_CIPHER_MODE_CTR);
 	// if (ret != 0) return ret;
 	// ret = i_init_update_final_sample(input, inputlength, param.m_mode);
 	// if (ret != 0) return ret;
@@ -197,7 +197,9 @@ int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, int blo
 	ret = i_enc_init(ctx, cipher_id, zeroKey, &param);
 	if (ret != 0) return ret;
 
-	///////////////////////////////////update/////////////////////////////////////////
+
+	///////////////////////////////////enc update/////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
 	ret = i_enc_update(ctx, p_input, 3, output2, &output2length);
 	if (ret != 0) {
 		printf("I_enc_update fail [%d]\n", ret);
@@ -226,8 +228,11 @@ int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, int blo
 
 	printf("\n *----------------------      i_enc_final()      ------------------------\n\n");
 	hexdump("output", output2, outputtotal);
-	/////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+
+	///////////////////////////////////dec update////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////
 	ret = i_dec_init(ctx, cipher_id, zeroKey, &param);
 	if (ret != 0) return ret;
 
@@ -236,7 +241,7 @@ int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, int blo
 	dectotal += decdatalength;
 	printf("\n\n\n\n\n *----------------------      i_dec_update()      ------------------------\n");
 	hexdump("output", decdata, dectotal);
-
+	
 	ret = i_dec_update(ctx, output2 + 3, 13, decdata + dectotal, &decdatalength);
 	if (ret != 0) return ret;
 	dectotal += decdatalength;
@@ -255,6 +260,9 @@ int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, int blo
 	printf("\n *----------------------      i_dec_final()      ------------------------\n");
 	hexdump("output", decdata, dectotal);
 
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////
 	i_ctx_free(ctx);
 
 	printf("\n\n===============================i_init_update_final_end===================================\n\n");
