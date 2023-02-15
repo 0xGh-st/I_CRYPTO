@@ -18,7 +18,7 @@ int origin_sample(int 	p_cipher_id,
 
 //keyword 'i' is ybkim's signature
 int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode);
-//int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode);
+int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode);
 //int i_init_update_final_file_sample(int blockmode);
 
 ///////////////////////////////////////////////main///////////////////////////////////////////////////////
@@ -41,12 +41,13 @@ int main(void) {
 	// 	scanf("%d", &option);
 	// }
 	// if (option == 1)
-	// 	param.m_mode = EDGE_CIPHER_MODE_CBC;
+	// 	param.m_mode = I_CIPHER_MODE_CBC;
 	// else
-	// 	param.m_mode = EDGE_CIPHER_MODE_CTR;
+	// 	param.m_mode = I_CIPHER_MODE_CTR;
 
 	//sample
 	ret = i_enc_dec_sample(input, inputlength, I_CIPHER_MODE_CBC);
+	ret = i_init_update_final_sample(input, inputlength, I_CIPHER_MODE_CBC);
 	// if (ret != 0) return ret;
 	// ret = i_init_update_final_sample(input, inputlength, param.m_mode);
 	// if (ret != 0) return ret;
@@ -139,95 +140,84 @@ int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode) {
 	ctx = i_ctx_new();
 	i_enc_init(ctx, I_CIPHER_ID_AES128, zeroKey, &param);
 	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
-	printf("=============================i_enc_update===========================\n");
-	ret = i_enc_update(ctx, p_input, p_inputlength, output2, &output2length);
-	if (ret != 0) return ret;
-	hexdump("output", output2, output2length);
-	printf("\n\n==================================================================\n\n");
-
-	// //openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
-	// ret = i_enc(cipher_id, &encKey, &param, p_input, p_inputlength, output2, &output2length);
+	// printf("=============================i_enc_update===========================\n");
+	// ret = i_enc_update(ctx, p_input, p_inputlength, output2, &output2length);
 	// if (ret != 0) return ret;
+	// hexdump("output", output2, output2length);
 	// printf("\n\n==================================================================\n\n");
+
+	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
+	ret = i_enc(cipher_id, &encKey, &param, p_input, p_inputlength, output2, &output2length);
+	if (ret != 0) return ret;
+	printf("\n\n==================================================================\n\n");
 	
-	// //openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 복호화
-	// ret = i_dec(cipher_id, &decKey, &param, output2, output2length, decdata, &decdatalength);
-	// if (ret != 0) return ret;
+	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 복호화
+	ret = i_dec(cipher_id, &decKey, &param, output2, output2length, decdata, &decdatalength);
+	if (ret != 0) return ret;
 	
 	printf("\n=================================i_enc_dec_sample_end=====================================\n\n\n\n\n\n");
 
 	return ret;
 }
-/*
-int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, uint32_t blockmode) {
-	int ret = 0;
-	EDGE_CIPHER_PARAMETERS  param;
-	I_CIPHER_CTX* ctx;
 
-	int          cipher_id = EDGE_CIPHER_ID_ARIA128;
-	uint8_t      key[16] = { 0x00, };
-	uint32_t     keylength = 16;
-	uint8_t      iv[16] = { 0x00, };
-	uint32_t     ivlength = 16;
-	uint8_t      output[1024] = { 0x00, };
+int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode) {
+	int ret = 0;
+
+	I_CIPHER_PARAMETERS  param;
+
+	int          cipher_id = I_CIPHER_ID_AES128;
+	uint8_t 	 zeroKey[16] = {0x00, };
+	AES_KEY      encKey;
+	AES_KEY		 decKey;
+	uint8_t      output[64] = {0x00, };//= { 0x00, };
 	uint32_t     outputlength = 0;
-	uint8_t      output2[1024] = { 0x00, };
+	uint8_t      output2[1024];// = { 0x00, };
 	uint32_t     output2length = 0;
 	uint8_t		 decdata[1024];
 	uint32_t	 decdatalength = 0;
-	uint32_t	 outputtotal = 0;
+	uint32_t 	 outputtotal = 0;
 	uint32_t	 dectotal = 0;
-	uint32_t	 paddingLength = 0;
-	memset(&param, 0, sizeof(EDGE_CIPHER_PARAMETERS));
+	uint32_t	 paddinglength = 0;
+	void* 		 ctx = NULL;
 
-	keylength = 16;
-	ivlength = 16;
+	memset(&encKey, 0, sizeof(AES_KEY));
+	memset(&decKey, 0, sizeof(AES_KEY));
+	memset(&param, 0, sizeof(I_CIPHER_PARAMETERS));
+	param.ivlength = 16;
+	memset(param.iv, 0, param.ivlength);
 
-	param.m_mode = blockmode;
-	param.m_padding = EDGE_CIPHER_PADDING_PKCS5;
-	param.m_modeparam.m_modesize = 16;
+	param.mode = blockmode;
 
-	edge_random_byte(key, keylength);
-	//edge_random_byte(iv, ivlength);
-
-	memcpy(param.m_modeparam.m_iv, iv, ivlength);
-	param.m_modeparam.m_ivlength = ivlength;
 	printf("\n\n===============================i_init_update_final_start===================================\n\n");
-	origin_sample(cipher_id, key, keylength, p_input, 16, output, &outputlength, iv, ivlength, blockmode);
 
 	ctx = i_ctx_new();
 
-	ret = i_enc_init(ctx, cipher_id, key, keylength, &param);
+	ret = i_enc_init(ctx, cipher_id, zeroKey, &param);
 	if (ret != 0) return ret;
 
 	///////////////////////////////////update/////////////////////////////////////////
 	ret = i_enc_update(ctx, p_input, 3, output2, &output2length);
 	if (ret != 0) {
-		printf("edge_enc_update fail [%d]\n", ret);
+		printf("I_enc_update fail [%d]\n", ret);
 		return ret;
 	}
 	outputtotal += output2length;
-	printf("\n\n *----------------------      edge_enc_update()     ------------------------\n");
+	printf("\n\n *----------------------      I_enc_update()     ------------------------\n");
 	hexdump("output", output2, outputtotal);
 
 	ret = i_enc_update(ctx, p_input + 3, 13, output2 + outputtotal, &output2length);
 	if (ret != 0) {
-		printf("edge_enc_update fail [%d]\n", ret);
+		printf("I_enc_update fail [%d]\n", ret);
 		return ret;
 	}
 	outputtotal += output2length;
-	printf("\n *----------------------      edge_enc_update()     ------------------------\n");
+	printf("\n *----------------------      I_enc_update()     ------------------------\n");
 	hexdump("output", output2, outputtotal);
 
-	//ret = i_enc_update(ctx, p_input + 32, 1, output2 + outputtotal, &output2length);
-	//if (ret != 0) {
-	//	printf("edge_enc_update fail [%d]\n", ret);
-	//	return ret;
-	//}
-	//outputtotal += output2length;
-	//printf("\n *----------------------      edge_enc_update()     ------------------------\n");
-	//hexdump("output", output2, outputtotal);
-
+	ret = i_enc_update(ctx, p_input + 16, 17, output2 + outputtotal, &output2length);
+	outputtotal += output2length;
+	printf("\n *----------------------      I_enc_update()     ------------------------\n");
+	hexdump("output", output2, outputtotal);
 	ret = i_enc_final(ctx, output2 + outputtotal, &output2length);
 	if (ret != 0) return ret;
 	outputtotal += output2length;
@@ -236,7 +226,7 @@ int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, uint32_
 	hexdump("output", output2, outputtotal);
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
-	ret = i_dec_init(ctx, cipher_id, key, keylength, &param);
+	ret = i_dec_init(ctx, cipher_id, zeroKey, &param);
 	if (ret != 0) return ret;
 
 	ret = i_dec_update(ctx, output2, 3, decdata, &decdatalength);
@@ -251,15 +241,15 @@ int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, uint32_
 	printf("\n *----------------------      i_dec_update()      ------------------------\n");
 	hexdump("output", decdata, dectotal);
 
-	ret = i_dec_update(ctx, output2 + 16, 16, decdata + dectotal, &decdatalength);
+	ret = i_dec_update(ctx, output2 + 16, 32, decdata + dectotal, &decdatalength);
 	if (ret != 0) return ret;
 	dectotal += decdatalength;
 	printf("\n *----------------------      i_dec_update()      ------------------------\n");
 	hexdump("output", decdata, dectotal);
 
-	ret = i_dec_final(ctx, NULL, NULL, &paddingLength);
+	ret = i_dec_final(ctx, &paddinglength);
 	if (ret != 0) return ret;
-	dectotal -= paddingLength;
+	dectotal -= paddinglength;
 	printf("\n *----------------------      i_dec_final()      ------------------------\n");
 	hexdump("output", decdata, dectotal);
 
@@ -269,14 +259,14 @@ int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, uint32_
 
 	return ret;
 }
-*/
+
 /*
 int i_init_update_final_file_sample(uint32_t blockmode) {
 	int ret = 0;
-	EDGE_CIPHER_PARAMETERS  param;
+	I_CIPHER_PARAMETERS  param;
 	I_CIPHER_CTX* ctx;
 
-	int          cipher_id = EDGE_CIPHER_ID_ARIA128;
+	int          cipher_id = I_CIPHER_ID_AES128;
 	uint8_t		 input[1024];
 	uint32_t     inputlength = 0;
 	uint32_t	 bufferSize = 1024;
@@ -304,16 +294,16 @@ int i_init_update_final_file_sample(uint32_t blockmode) {
 		return -1;
 	}
 
-	memset(&param, 0, sizeof(EDGE_CIPHER_PARAMETERS));
+	memset(&param, 0, sizeof(I_CIPHER_PARAMETERS));
 
 	keylength = 16;
 	ivlength = 16;
 
 	param.m_mode = blockmode;
-	param.m_padding = EDGE_CIPHER_PADDING_PKCS5;
+	param.m_padding = I_CIPHER_PADDING_PKCS5;
 	param.m_modeparam.m_modesize = 16;
 
-	edge_random_byte(key, keylength);
+	I_random_byte(key, keylength);
 
 	memcpy(param.m_modeparam.m_iv, iv, ivlength);
 	param.m_modeparam.m_ivlength = ivlength;
@@ -340,7 +330,7 @@ int i_init_update_final_file_sample(uint32_t blockmode) {
 		}
 		ret = i_enc_update(ctx, input, inputlength, output, &outputlength);
 		if (ret != 0) {
-			printf("edge_enc_update fail [%d]\n", ret);
+			printf("I_enc_update fail [%d]\n", ret);
 			return ret;
 		}
 		for (int i = 0; i < outputlength; i++)//write

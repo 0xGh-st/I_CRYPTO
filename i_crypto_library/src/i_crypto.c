@@ -47,7 +47,6 @@ typedef struct I_CIPHER_CTX{
 	uint8_t  buffer[16];
 	uint8_t	 bufferSize;
 	uint8_t	 lastDecBlock[16];
-	uint8_t  total;
 	I_CIPHER_PARAMETERS param;
 }I_CIPHER_CTX; 
 
@@ -352,7 +351,6 @@ I_EXPORT int i_enc_init(I_CIPHER_CTX* p_context, const int p_cipher_id, uint8_t*
 	memset(&(p_context->buffer), 0, 16);
 	memset(&(p_context->lastDecBlock), 0, 16);
 
-	p_context->total = 0;
 	p_context->cipher_id = p_cipher_id;
 	p_context->bufferSize = 0;
 
@@ -390,7 +388,7 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 			remainDataStartIndex++;
 		}
 	}
-	p_context->total += p_inputlength;
+
 	while(p_context->bufferSize == blocklength || remainLength >= 16){//버퍼가 블록단위로 가득 찼거나, 블록에 넣고 남은 데이터가 blocklength 보다 크면 암호화 진행
 		switch (p_context->param.mode) {
 		case I_CIPHER_MODE_CBC:
@@ -426,45 +424,39 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 		}
 		blockNum++;
 	}
-
-	for (int i = remainDataStartIndex; i < remainLength; i++) {//버퍼에 남은 데이터 저장
-		p_context->buffer[i - remainDataStartIndex] = p_input[remainDataStartIndex + i];
+	//버퍼에 남은 데이터 저장
+	for (int i = remainDataStartIndex; i < remainDataStartIndex + remainLength; i++) {
+		p_context->buffer[i - remainDataStartIndex] = p_input[i];
 		p_context->bufferSize++;
 	}
-
 	return ret;
 }
-/*
+
 I_EXPORT int i_enc_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p_outputlength) {
 	int     ret = 0;
 
 	uint8_t      block[16]; 
 	uint32_t     blocklength = 16; 
 	uint8_t		 lastBlockpreBlock[16];
+	*p_outputlength = 0;
 
 	//마지막 블록 패딩 처리
 	for (int i = 0; i < blocklength; i++) {
-		if (i < p_context->total % blocklength)//나머지 데이터 길이
+		if (i < p_context->bufferSize)//나머지 데이터 길이
 			block[i] = p_context->buffer[i];//버퍼에 암호화가 안된 나머지 데이터가 있으므로
 		else//패딩
-			block[i] = blocklength - (p_context->total % blocklength);
+			block[i] = blocklength - (p_context->bufferSize);
 	}
 
 	switch (p_context->param.mode) {
 	case I_CIPHER_MODE_CBC:
 		for (int i = 0; i < blocklength; i++) 
 			block[i] ^= p_context->param.iv[i];//첫블록에 대해선 기존 iv, 첫블록 이후 블록이면 iv는 이전 암호문
-
-		ret = enc_cbc_to_ecb(p_context->cipher_id, &(p_context->key), block, blocklength, lastBlockpreBlock, p_outputlength);
-		if (ret != 0) {
-			print_result("i_enc_final", ret);
-			return ret;
-		}
-
+		AES_ecb_encrypt(block, lastBlockpreBlock, &(p_context->key), AES_ENCRYPT);
 		for (int i = 0; i < blocklength; i++)
 			p_output[i] = lastBlockpreBlock[i];
 		break;
-	case I_CIPHER_MODE_CTR:
+	case I_CIPHER_MODE_CTR:/*
 		ret = enc_cbc_to_ecb(p_context->cipher_id, &(p_context->key), p_context->param.iv, p_context->param.ivlength, lastBlockpreBlock, p_outputlength);
 		if (ret != 0) {
 			print_result("i_enc_final", ret);
@@ -472,8 +464,10 @@ I_EXPORT int i_enc_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p
 		}
 		for (int i = 0; i < blocklength; i++)
 			p_output[i] = block[i] ^ lastBlockpreBlock[i];
+		*/
 		break;
 	}
+	*p_outputlength += blocklength;
 	return ret;
 }
 
@@ -486,7 +480,6 @@ I_EXPORT int i_dec_init(I_CIPHER_CTX* p_context, const int p_cipher_id, uint8_t*
 	memset(&(p_context->buffer), 0, 16);
 	memset(&(p_context->lastDecBlock), 0, 16);
 	
-	p_context->total = 0;
 	p_context->cipher_id = p_cipher_id;
 	p_context->bufferSize = 0;
 	
@@ -510,6 +503,7 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 	uint32_t	 blockNum = 0;//q 성공할 때마다 증가하여 output의 인덱스를 올려줌
 	uint32_t	 remainLength = 0;
 	uint32_t	 index = 0;
+	uint32_t 	 remainDataStartIndex = 0;
 
 	*p_outputlength = 0;//update시 p_outputlength는 0으로 초기화
 	remainLength = p_inputlength;
@@ -520,32 +514,36 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 			p_context->buffer[i] = p_input[i - index];
 			p_context->bufferSize++;
 			remainLength--;
+			remainDataStartIndex++;
 		}
 	}
-	p_context->total += p_inputlength;
 
 	while (p_context->bufferSize == blocklength || remainLength >= 16) {//버퍼가 가득 찼을 경우
 		switch (p_context->param.mode) {
 		case I_CIPHER_MODE_CBC:
 			if (p_context->bufferSize == blocklength) {//우선 버퍼가 찼으면 버퍼부터 암호화
-				
-				//ret = dec_ecb_to_cbc_pkcs5(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output + (blockNum * blocklength), p_outputlength, p_context->param.iv, p_context->param.ivlength);
-				for (int i = 0; i < blocklength; i++)//버퍼에 이전 암호문을 iv에 저장
+				AES_ecb_encrypt(p_context->buffer, p_output, &(p_context->key), AES_DECRYPT);
+				//iv(초기벡터, 혹은 이전 암호문)와 p_output의 결과값은 xor, 동시에 iv 이전 암호문 저장
+				for (int i = 0; i < blocklength; i++){
+					p_output[i] ^= p_context->param.iv[i];
 					p_context->param.iv[i] = p_context->buffer[i];
+				}
+				p_context->bufferSize = 0;
 			}
 			else {
-				ret = dec_ecb_to_cbc_pkcs5(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + (blockNum * blocklength), p_outputlength, p_context->param.iv, p_context->param.ivlength);
-				for (int i = 0; i < blocklength; i++)//이전 암호문 저장
-					p_context->param.iv[i] = p_input[i + (p_inputlength - remainLength) + (remainLength / blocklength * blocklength) - blocklength];
+				AES_ecb_encrypt(p_input + remainDataStartIndex, p_output + (blockNum * blocklength), &(p_context->key), AES_DECRYPT);
+				for (int i = 0; i < blocklength; i++){
+					p_output[i + (blockNum * blocklength)] ^= p_context->param.iv[i];
+					p_context->param.iv[i] = p_input[i+remainDataStartIndex];
+				}
+				remainLength -= blocklength;
+				remainDataStartIndex += blocklength;
 			}
-			if (ret != 0) {
-				print_result("i_dec_update", ret);
-				return ret;
-			}
+			*p_outputlength += blocklength;
 			for (int i = 0; i < blocklength; i++)//마지막 복호문 저장
 				p_context->lastDecBlock[i] = p_output[*p_outputlength - blocklength + i];
 			break;
-		case I_CIPHER_MODE_CTR:
+		case I_CIPHER_MODE_CTR:/*
 			if (p_context->bufferSize == blocklength)//우선 버퍼가 찼으면 버퍼부터 암호화
 				ret = dec_ctr_mode(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output + (blockNum * blocklength), p_outputlength, p_context->param.iv, p_context->param.ivlength);
 			else
@@ -556,47 +554,30 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 			}
 			for (int i = 0; i < blocklength; i++)//마지막 복호문 저장
 				p_context->lastDecBlock[i] = p_output[*p_outputlength - blocklength + i];
+				*/
 			break;
 		}
-		//남는 데이터 처리
-		if (remainLength >= 16 && p_context->bufferSize == blocklength) {//buffer가 blocklength가 돼서 buffer를 먼저 암호화 한 경우
-			p_context->bufferSize = 0;
-			blockNum++;
-			continue;
-		}
-		p_context->bufferSize = 0;
-		remainLength %= blocklength;//최종 남은 데이터 길이
-		for (int i = 0; i < remainLength; i++) {//버퍼에 남은 데이터 저장
-			p_context->buffer[i] = p_input[p_inputlength - remainLength + i];
-			p_context->bufferSize++;
-		}
 		blockNum++;
+	}
+	//버퍼에 남은 데이터 저장
+	for (int i = remainDataStartIndex; i < remainDataStartIndex + remainLength; i++) {
+		p_context->buffer[i - remainDataStartIndex] = p_input[i];
+		p_context->bufferSize++;
 	}
 	return ret;
 }
 
-I_EXPORT int i_dec_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p_outputlength, uint32_t* p_paddingLength) {
+I_EXPORT int i_dec_final(I_CIPHER_CTX* p_context, uint32_t* p_paddinglength) {
 	int ret = 0;
-	if (p_context->total % 16 != 0) {
-		printf("dec error\n");
-		ret = -1;
-		return ret;
-	}
-	if (p_output == NULL && p_outputlength == NULL) {
-		*p_paddingLength = p_context->lastDecBlock[p_context->param.modesize - 1];//패딩값 저장
-		for (int i = 0; i < *p_paddingLength; i++) {
-			if (p_context->lastDecBlock[p_context->param.modesize - 1 - i] != *p_paddingLength) {//패딩 값에 대한 유효성 검증(마지막 복호문에서 패딩 검증)
-				ret = -1;
-				print_result("i_dec_final", ret);
-				return ret;
-			}
+	
+	*p_paddinglength = p_context->lastDecBlock[16 - 1];//패딩값 저장
+	for (int i = 0; i < *p_paddinglength; i++) {
+		if (p_context->lastDecBlock[16 - 1 - i] != *p_paddinglength) {//패딩 값에 대한 유효성 검증(마지막 복호문에서 패딩 검증)
+			ret = -1;
+			printf("i_dec_final() failed... %d\n", ret);
+			return ret;
 		}
-		return ret;
 	}
-	else {
-		printf("i_dec_final() : This funtion cannot dec stream Mode\n");
-		return -1;
-	}
+	return ret;
 }
 
-*/
