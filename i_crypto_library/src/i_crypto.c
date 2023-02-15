@@ -165,10 +165,9 @@ I_LOCAL int dec_ctr_mode(int 	    p_cipher_id,
 	uint8_t      ecb_output[16] = { 0x00, };
 	uint32_t     dataIndex = 0; //block의 길이만큼 증가하는 데이터의 인덱스
 	uint32_t	 blockNum = p_inputlength / blocklength;
-	uint32_t	 lastBlockLength = p_inputlength % blocklength;
 
 	for (int i = 0; i < blockNum; i++) {
-		AES_ecb_encrypt(counter, ecb_output, p_key, AES_DECRYPT);
+		AES_ecb_encrypt(counter, ecb_output, p_key, AES_ENCRYPT);
 		for (int j = dataIndex; j < blocklength + dataIndex; j++)
 			p_output[j] = ecb_output[j % blocklength] ^ p_input[j];
 		(*((int*)counter))++;
@@ -371,11 +370,10 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 
 	uint8_t      block[16]; //plain_text xor pre_enc_data
 	uint32_t     blocklength = 16; //block 길이
-	uint32_t	 blockNum = 0;//padding인덱스 포함
-	uint32_t	 remainLength = 0;
+	uint32_t	 remainLength = 0; //암호화하고 남은 input 데이터의 길이
 	uint32_t	 index = 0;
-	uint32_t 	 remainDataStartIndex = 0;
-
+	uint32_t 	 remainDataStartIndex = 0;//암호화하거나 버퍼에 쌓을 input 데이터의 시작점
+	
 	*p_outputlength = 0;//update시 p_outputlength는 0으로 초기화
 	remainLength = p_inputlength;
 	index = p_context->bufferSize;
@@ -399,30 +397,31 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 				p_context->bufferSize = 0;//버퍼는 암호화했으므로 0 초기화
 			}
 			else{//버퍼가 비어있고 남은 데이터가 16보다 길면
-				for(int i=remainDataStartIndex;i<remainDataStartIndex+p_context->param.ivlength;i++)//iv는 초기벡터이거나 이전 암호문
+				for(int i=remainDataStartIndex;i<remainDataStartIndex+blocklength;i++)//iv는 초기벡터이거나 이전 암호문
 					block[i - remainDataStartIndex] = p_input[i] ^ p_context->param.iv[i-remainDataStartIndex];
-				AES_ecb_encrypt(block, p_output + (blockNum * blocklength), &(p_context->key), AES_ENCRYPT);
+				AES_ecb_encrypt(block, p_output + *p_outputlength, &(p_context->key), AES_ENCRYPT);
 				remainLength -= blocklength;
 				remainDataStartIndex += blocklength;
 			}
-			*p_outputlength += blocklength;
 			for (int i = 0; i < p_context->param.ivlength; i++)//첫블록 이후 iv는 이전 암호문
-				p_context->param.iv[i] = p_output[*p_outputlength - blocklength + i];
+				p_context->param.iv[i] = p_output[*p_outputlength + i];
 			break;
-
 		case I_CIPHER_MODE_CTR:
-		/*
-			if (p_context->bufferSize == blocklength)
-				ret = enc_ctr_mode(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output + (blockNum * blocklength), p_outputlength, p_context->param.iv, p_context->param.ivlength);
-			else
-				ret = enc_ctr_mode(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + (blockNum * blocklength), p_outputlength, p_context->param.iv, p_context->param.ivlength);
-			if (ret != 0) {
-				printf("i_enc_update %d\n", ret);
-				return ret;
-			}*/
+			//CTR mode -> counter부터 암호화
+			AES_ecb_encrypt(p_context->param.iv, p_output + *p_outputlength, &(p_context->key), AES_ENCRYPT);
+			if (p_context->bufferSize == blocklength){
+				for(int i=0;i<blocklength;i++)
+					p_output[i] ^= p_context->buffer[i];
+			}
+			else{
+				for(int i=0;i<blocklength;i++)
+					p_output[i + *p_outputlength] ^= p_input[i + remainDataStartIndex];
+				remainLength -= blocklength;
+				remainDataStartIndex += blocklength;
+			}
 			break;
 		}
-		blockNum++;
+		*p_outputlength += blocklength;//암호화가 되었다면 outputlength 증가
 	}
 	//버퍼에 남은 데이터 저장
 	for (int i = remainDataStartIndex; i < remainDataStartIndex + remainLength; i++) {
@@ -437,7 +436,7 @@ I_EXPORT int i_enc_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p
 
 	uint8_t      block[16]; 
 	uint32_t     blocklength = 16; 
-	uint8_t		 lastBlockpreBlock[16];
+
 	*p_outputlength = 0;
 
 	//마지막 블록 패딩 처리
@@ -452,19 +451,12 @@ I_EXPORT int i_enc_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p
 	case I_CIPHER_MODE_CBC:
 		for (int i = 0; i < blocklength; i++) 
 			block[i] ^= p_context->param.iv[i];//첫블록에 대해선 기존 iv, 첫블록 이후 블록이면 iv는 이전 암호문
-		AES_ecb_encrypt(block, lastBlockpreBlock, &(p_context->key), AES_ENCRYPT);
-		for (int i = 0; i < blocklength; i++)
-			p_output[i] = lastBlockpreBlock[i];
+		AES_ecb_encrypt(block, p_output, &(p_context->key), AES_ENCRYPT);
 		break;
-	case I_CIPHER_MODE_CTR:/*
-		ret = enc_cbc_to_ecb(p_context->cipher_id, &(p_context->key), p_context->param.iv, p_context->param.ivlength, lastBlockpreBlock, p_outputlength);
-		if (ret != 0) {
-			print_result("i_enc_final", ret);
-			return ret;
-		}
+	case I_CIPHER_MODE_CTR:
+		AES_ecb_encrypt(p_context->param.iv, p_output, &(p_context->key), AES_ENCRYPT);
 		for (int i = 0; i < blocklength; i++)
-			p_output[i] = block[i] ^ lastBlockpreBlock[i];
-		*/
+			p_output[i] ^= block[i];
 		break;
 	}
 	*p_outputlength += blocklength;
@@ -482,10 +474,17 @@ I_EXPORT int i_dec_init(I_CIPHER_CTX* p_context, const int p_cipher_id, uint8_t*
 	
 	p_context->cipher_id = p_cipher_id;
 	p_context->bufferSize = 0;
-	
-	if(AES_set_decrypt_key(p_key, 128, &(p_context->key)) < 0){
-		printf("i_enc_init() key 생성 오류\n");
-		return 0;
+	if(p_param->mode == I_CIPHER_MODE_CTR){//ctr모드이면 encrypt키로 키 설정
+		if(AES_set_encrypt_key(p_key, 128, &(p_context->key)) < 0){
+			printf("i_enc_init() key 생성 오류\n");
+			return 0;
+		}
+	}
+	else{
+		if(AES_set_decrypt_key(p_key, 128, &(p_context->key)) < 0){
+			printf("i_dec_init() key 생성 오류\n");
+			return 0;
+		}
 	}
 	
 	p_context->param.mode = p_param->mode;
@@ -500,7 +499,6 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 
 	uint8_t      block[16]; //plain_text xor pre_enc_data
 	uint32_t     blocklength = 16; //block 길이
-	uint32_t	 blockNum = 0;//q 성공할 때마다 증가하여 output의 인덱스를 올려줌
 	uint32_t	 remainLength = 0;
 	uint32_t	 index = 0;
 	uint32_t 	 remainDataStartIndex = 0;
@@ -531,34 +529,35 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 				p_context->bufferSize = 0;
 			}
 			else {
-				AES_ecb_encrypt(p_input + remainDataStartIndex, p_output + (blockNum * blocklength), &(p_context->key), AES_DECRYPT);
+				AES_ecb_encrypt(p_input + remainDataStartIndex, p_output + *p_outputlength, &(p_context->key), AES_DECRYPT);
 				for (int i = 0; i < blocklength; i++){
-					p_output[i + (blockNum * blocklength)] ^= p_context->param.iv[i];
+					p_output[i + *p_outputlength] ^= p_context->param.iv[i];
 					p_context->param.iv[i] = p_input[i+remainDataStartIndex];
 				}
 				remainLength -= blocklength;
 				remainDataStartIndex += blocklength;
 			}
-			*p_outputlength += blocklength;
-			for (int i = 0; i < blocklength; i++)//마지막 복호문 저장
-				p_context->lastDecBlock[i] = p_output[*p_outputlength - blocklength + i];
 			break;
-		case I_CIPHER_MODE_CTR:/*
-			if (p_context->bufferSize == blocklength)//우선 버퍼가 찼으면 버퍼부터 암호화
-				ret = dec_ctr_mode(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output + (blockNum * blocklength), p_outputlength, p_context->param.iv, p_context->param.ivlength);
-			else
-				ret = dec_ctr_mode(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + (blockNum * blocklength), p_outputlength, p_context->param.iv, p_context->param.ivlength);
-			if (ret != 0) {
-				print_result("i_dec_update", ret);
-				return ret;
+		case I_CIPHER_MODE_CTR:
+			AES_ecb_encrypt(p_context->param.iv, p_output + *p_outputlength, &(p_context->key), AES_ENCRYPT);
+			if (p_context->bufferSize == blocklength){//우선 버퍼가 찼으면 버퍼부터 복호화
+				for(int i=0;i<blocklength;i++)
+					p_output[i] ^= p_context->buffer[i];
 			}
-			for (int i = 0; i < blocklength; i++)//마지막 복호문 저장
-				p_context->lastDecBlock[i] = p_output[*p_outputlength - blocklength + i];
-				*/
+			else{
+				for(int i=0;i<blocklength;i++)
+					p_output[i + *p_outputlength] ^= p_input[i + remainDataStartIndex];
+				remainLength -= blocklength;
+				remainDataStartIndex += blocklength;
+			}
 			break;
 		}
-		blockNum++;
+		*p_outputlength += blocklength; //복호화가 진행되었다면 outputlength 증가
 	}
+	//복호화가 한번이라도 진행되었다면 마지막 복호문 저장 
+	if(*p_outputlength >= 16)
+		for (int i = 0; i < blocklength; i++)//마지막 복호문 저장
+			p_context->lastDecBlock[i] = p_output[*p_outputlength - blocklength + i];
 	//버퍼에 남은 데이터 저장
 	for (int i = remainDataStartIndex; i < remainDataStartIndex + remainLength; i++) {
 		p_context->buffer[i - remainDataStartIndex] = p_input[i];
@@ -580,4 +579,3 @@ I_EXPORT int i_dec_final(I_CIPHER_CTX* p_context, uint32_t* p_paddinglength) {
 	}
 	return ret;
 }
-

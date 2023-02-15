@@ -46,7 +46,7 @@ int main(void) {
 	// 	param.m_mode = I_CIPHER_MODE_CTR;
 
 	//sample
-	ret = i_enc_dec_sample(input, inputlength, I_CIPHER_MODE_CBC);
+	ret = i_enc_dec_sample(input, inputlength, I_CIPHER_MODE_CTR);
 	ret = i_init_update_final_sample(input, inputlength, I_CIPHER_MODE_CBC);
 	// if (ret != 0) return ret;
 	// ret = i_init_update_final_sample(input, inputlength, param.m_mode);
@@ -124,9 +124,17 @@ int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode) {
 		printf("encKey 생성 오류\n");
 		return 0;
 	}
-	if(AES_set_decrypt_key(zeroKey, 128, &decKey) < 0){
-		printf("decKey 생성 오류\n");
-		return 0;
+	if(param.mode == I_CIPHER_MODE_CTR){
+		if(AES_set_encrypt_key(zeroKey, 128, &decKey) < 0){
+			printf("decKey 생성 오류\n");
+			return 0;
+		}
+	}
+	else{
+		if(AES_set_decrypt_key(zeroKey, 128, &decKey) < 0){
+			printf("decKey 생성 오류\n");
+			return 0;
+		}
 	}
 	
 	printf("\n\n===============================i_enc_dec_sample_start===================================\n\n");
@@ -139,12 +147,6 @@ int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode) {
 	void *ctx = NULL;
 	ctx = i_ctx_new();
 	i_enc_init(ctx, I_CIPHER_ID_AES128, zeroKey, &param);
-	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
-	// printf("=============================i_enc_update===========================\n");
-	// ret = i_enc_update(ctx, p_input, p_inputlength, output2, &output2length);
-	// if (ret != 0) return ret;
-	// hexdump("output", output2, output2length);
-	// printf("\n\n==================================================================\n\n");
 
 	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
 	ret = i_enc(cipher_id, &encKey, &param, p_input, p_inputlength, output2, &output2length);
