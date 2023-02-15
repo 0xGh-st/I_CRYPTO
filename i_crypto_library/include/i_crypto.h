@@ -3,6 +3,7 @@
 * UTF-8
 * @author ybkim
 */
+
 #ifndef __I_SYMMETRIC_H__
 #define __I_SYMMETRIC_H__
 #include <stdlib.h>
