@@ -1,7 +1,6 @@
 DST = OTPPackage
 PRJ = Bank OTPChip createOTPMachine Settings otp_library
 DIRS = otp_library/src Bank OTPChip createOTPMachine
-DHEADER = edge_crypto_error.h edge_crypto_global.h edge_crypto.h
 .PHONY: all clean
 
 all:
@@ -27,11 +26,6 @@ package:
 	done
 	#소스코드 제거
 	rm -rf $(DST)/otp_library/src
-	#불필요한 헤더 제거
-	@for d in $(DHEADER); \
-	do \
-			rm $(DST)/otp_library/include/$$d; \
-	done
 	#doc 라이브러리에 html 포함하기
 	mkdir $(DST)/otp_library/doc
 	cp -r Doxygen/html $(DST)/otp_library/doc

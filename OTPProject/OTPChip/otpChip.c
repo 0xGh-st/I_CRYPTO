@@ -44,12 +44,6 @@ int main(){
 	EXTRACT_SIZE = atoi(strtok(NULL, "||"));
 	fclose(fp);
 
-	ret = otp_init();
-	if(ret != 0){
-		printf("edge_crypto_init %d\n", ret);
-		return ret;
-	}
-
 	time(&valid_time);
 
 	while(1){
@@ -79,6 +73,4 @@ int main(){
 		fflush(stdout);
 		sleep(1);
 	}
-
-	otp_final();
 }

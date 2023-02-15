@@ -37,12 +37,6 @@ int main(){
 		}
 	}
 	rewind(fp);
-	
-	ret = otp_init();
-	if(ret != 0){
-		printf("edge_crypto_init %d\n", ret);
-		return ret;
-	}
 
 	//시리얼번호를 이용해 otp기계의 정보를 가져옴
 	ret = -1;
@@ -80,7 +74,6 @@ int main(){
 		
 		if(count==3){
 			printf("횟수 초과!!\n");
-			otp_final();
 			return 0;
 		}
 
@@ -99,8 +92,6 @@ int main(){
 		if(ret == -2 || ret == -3) return ret;
 	}
 	printf("OTP 인증 성공!!\n");
-
-	otp_final();
 
 	return ret;
 }

@@ -50,7 +50,7 @@ typedef struct I_CIPHER_CTX{
 	I_CIPHER_PARAMETERS param;
 }I_CIPHER_CTX; 
 
-I_LOCAL int enc_ecb_to_cbc(int 	    p_cipher_id, //enc cbc_using_ecb
+I_LOCAL int enc_ecb_to_cbc(int p_cipher_id, //enc cbc_using_ecb
 	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,
@@ -87,7 +87,7 @@ I_LOCAL int enc_ecb_to_cbc(int 	    p_cipher_id, //enc cbc_using_ecb
 	return ret;
 }
 
-I_LOCAL int dec_ecb_to_cbc(int 	    p_cipher_id, //dec cbc_using_ecb
+I_LOCAL int dec_ecb_to_cbc(int p_cipher_id, //dec cbc_using_ecb
 	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,

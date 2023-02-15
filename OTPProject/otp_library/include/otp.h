@@ -7,6 +7,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <openssl/aes.h>
+#include <openssl/hmac.h>
+#include <openssl/sha.h>
+#include <math.h>
 
 #define MIN_DIGIT 6
 #define MAX_DIGIT 16
@@ -16,16 +20,6 @@
 #define DYNAMIC_MODE 2
 #define MIN_LIFE_TIME 30
 #define MAX_LIFE_TIME 120
-
-/**
-* @brief edge crypto에서 제공하는 edge_crypto_init() 래핑 함수
-*/
-int otp_init();
-
-/**
-* @brief edge crypto에서 제공하는 edge_crypto_final() 래핑 함수
-*/
-void otp_final();
 
 /**
 * @brief otp 정보에 관한 값들에 대한 유효성 검증 함수

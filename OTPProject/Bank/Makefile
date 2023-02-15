@@ -5,7 +5,7 @@ LD = gcc
 CFLAGS = -c -g 
 
 INC = -I../otp_library/include
-LIB = -L../otp_library/lib -lOTP -lEdgeCrypto
+LIB = -L../otp_library/lib -lOTP
 DEFS = -D_LINUX
 LD_CFLAGS = -Wl,-rpath,'$$ORIGIN/../otp_library/lib'
 

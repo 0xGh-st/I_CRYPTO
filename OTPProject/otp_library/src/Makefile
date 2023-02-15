@@ -1,7 +1,7 @@
 all : ../lib/libOTP.so
 
 ../lib/libOTP.so : otp.o
-	gcc -shared -o ../lib/libOTP.so otp.o -lm
+	gcc -shared -o ../lib/libOTP.so otp.o -lssl -lcrypto -lm
 otp.o : otp.c
 	gcc -fPIC -c -o otp.o otp.c -I../include/
 

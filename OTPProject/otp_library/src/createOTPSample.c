@@ -82,7 +82,7 @@ int createOTPSample(){
 
 	//for making otp machine, you need serial number and key
 	set_serial_number(serialNum, serialNumLength);
-	set_key(key, keyLength);
+	//set_key(key, keyLength);
 	
 	//시리얼 넘버 카드에 시리얼 넘버를 씀
 	ret = write_serial_number(SerialNumberCardDIR, serialNum, serialNumLength);

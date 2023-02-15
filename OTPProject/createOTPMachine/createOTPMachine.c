@@ -38,19 +38,12 @@ int main(){
 		return -1;
 	}
 
-	ret = otp_init();
-	if(ret!=0){
-		printf("otp_init() %d\n", ret);
-		fclose(settings);
-		return ret;
-	}
-
 	//settings에서 otp 생성에 필요한 정보들을 가져옴
 	ret = read_settings(settings, &serialNumDigit, &keyLength, &otpDigit, &lifeTime, &mode, &EXTRACT_START_INDEX, &EXTRACT_SIZE);
 	fclose(settings);
 	if(ret != 0) return ret;
 
-	set_key(key, keyLength);
+	//set_key(key, keyLength);
 	set_serial_number(serialNum, serialNumDigit);
 	
 	//값 검증

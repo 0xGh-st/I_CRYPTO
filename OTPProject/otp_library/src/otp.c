@@ -3,19 +3,9 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include "edge_crypto.h"
 #include "otp.h"
 
 int validatorFlag = 0;
-
-//wrapping edge_crypto_init and final
-int otp_init(){
-	return edge_crypto_init(NULL);
-}
-
-void otp_final(){
-	edge_crypto_final();
-}
 
 //validator
 int otp_option_validator(const unsigned int serialNumDigit, const unsigned int keyLength,
@@ -62,10 +52,6 @@ int otp_option_validator(const unsigned int serialNumDigit, const unsigned int k
 void set_serial_number(char* serialNum, uint32_t serialNumDigit){
 	for(int i=0; i<serialNumDigit; i++)
 		serialNum[i] = rand() % 10 + '0';
-}
-
-void set_key(char* key, uint32_t keyLength){
-	edge_random_byte(key, keyLength);
 }
 
 //write
@@ -240,7 +226,8 @@ uint32_t generateOTP(time_t currentTime, char* key,
 					 uint32_t EXTRACT_START_INDEX, uint32_t EXTRACT_SIZE){	
 	int ret = 0;
 
-	int mac_id = EDGE_HMAC_ID_SHA256;
+	//int mac_id = EDGE_HMAC_ID_SHA256;
+	AES_KEY hmacKey;
 	uint8_t output[1024] = {0x00, };
 	uint32_t outputlength = 0;
 	uint32_t timer = 0;
@@ -249,12 +236,18 @@ uint32_t generateOTP(time_t currentTime, char* key,
 	t = localtime(&currentTime);
 		
 	currentTime += (t->tm_sec/lifeTime * lifeTime) - t->tm_sec;
-		
-	ret = edge_mac(mac_id, key, keyLength, (uint8_t*)&currentTime, sizeof(currentTime), output, &outputlength);
-	if(ret != 0){
-		printf("edge_mac %d\n", ret);
+	
+
+	if(AES_set_encrypt_key(key, 256, &(hmacKey)) < 0){
+		printf("i_enc_init() key 생성 오류\n");
 		return 0;
 	}
+	HMAC(EVP_sha256(), &hmacKey, keyLength, (uint8_t*)&currentTime, sizeof(currentTime), output, &outputlength);
+	// ret = edge_mac(mac_id, key, keyLength, (uint8_t*)&currentTime, sizeof(currentTime), output, &outputlength);
+	// if(ret != 0){
+	// 	printf("edge_mac %d\n", ret);
+	// 	return 0;
+	// }
 		
 	uint32_t OTP = 0;
 	if(mode == 2)//Dynamic mode, output의 마지막 값에 하위 4비트를 시작 인덱스로 사용.
