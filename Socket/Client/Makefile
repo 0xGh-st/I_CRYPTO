@@ -4,10 +4,10 @@ CC = gcc
 LD = gcc
 CFLAGS = -c -g 
 
-INC = -I../lib
-LIB = -L../lib -lEdgeCrypto -lISymmetric
+INC = -I../i_crypto_library/include
+LIB = -L../i_crypto_library/lib -lICrypto -lssl -lcrypto
 DEFS = -D_LINUX
-LD_CFLAGS = -Wl,-rpath,'$$ORIGIN/../lib'
+LD_CFLAGS = -Wl,-rpath,'$$ORIGIN/../i_crypto_library/lib'
 
 SRCS = client.c
 OBJS = client.o

@@ -6,8 +6,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <pthread.h>
-#include "i_symmetric.h"
-#include "edge_crypto.h"
+#include "i_crypto.h"
 
 #define BUF_SIZE 100
 #define MAX_CLNT 256
@@ -27,8 +26,11 @@ int main(int argc, char* argv[]){
 	pthread_t t_id;
 	int ret = 0;
 
-	int cipher_id = EDGE_CIPHER_ID_AES128;
-	uint8_t key[16] = {0x00, };
+	int cipher_id = I_CIPHER_ID_AES128;
+	uint8_t key[16] = {0x01, 0x02, 0x03, 0x04,
+					   0x05, 0x06, 0x07, 0x08,
+					   0x09, 0x0a, 0x0b, 0x0c,
+					   0x0d, 0x0e, 0x0f, 0x10};
 	uint32_t keylength = 16;
 	uint8_t encKey[256] = {0x00,};
 	uint32_t encKeylength = 0;
@@ -36,28 +38,10 @@ int main(int argc, char* argv[]){
 	uint8_t client_public_key[2048] = {0x00,};
 	uint32_t client_public_keylength = 0;
 
-	EDGE_ASYM_ENC_PARAM param;
-
 	if(argc!=2){//경로/port번호 입력받아야함
 		printf("Usage : %s <port> \n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
-
-	ret = edge_crypto_init(NULL);
-	if(ret!=0){
-		print_result("edge_crypto_init", ret);
-		return ret;
-	}
-
-	edge_crypto_change_mode();
-
-	//init asym_param......
-	edge_random_byte(key, keylength);
-	param.m_encMode = EDGE_RSA_ENC_MODE_OAEP;
-	param.m_oaep.m_hashAlg = EDGE_HASH_ID_SHA256;
-	param.m_oaep.m_label = NULL;
-	param.m_oaep.m_labelLength = 0;
-	param.m_oaep.m_mgfHashAlg = EDGE_HASH_ID_SHA256;
 
 	pthread_mutex_init(&mutx, NULL);//mutex생성
 
@@ -90,7 +74,13 @@ int main(int argc, char* argv[]){
 		}
 		hexdump("client_public_key", client_public_key, client_public_keylength);
 		//클라이언트의 공개키로 대칭키를 암호화
-		edge_asym_enc(client_public_key, client_public_keylength, &param, key, keylength, encKey, &encKeylength);  
+		ret = public_encrypt(key, keylength, client_public_key, encKey);
+		if(ret == -1){
+			printf("rsa enc failed...\n");
+			return ret;
+		}
+		encKeylength = ret;
+		//I_asym_enc(client_public_key, client_public_keylength, &param, key, keylength, encKey, &encKeylength);  
 		hexdump("key", key, keylength);
 		hexdump("encKey", encKey, encKeylength);
 		
@@ -106,8 +96,6 @@ int main(int argc, char* argv[]){
 		pthread_create(&t_id, NULL, handle_clnt, (void*)&clnt_sock);
 		pthread_detach(t_id);
 	}
-
-	edge_crypto_final();
 
 	return 0;
 }

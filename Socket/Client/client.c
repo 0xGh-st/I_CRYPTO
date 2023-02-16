@@ -6,90 +6,92 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <pthread.h>
-#include "i_symmetric.h"
-#include "edge_crypto.h"
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
+#include "i_crypto.h"
 
 #define BUF_SIZE 100
 #define NAME_SIZE 20
 
-void* send_msg(void* arg);
-void* recv_msg(void* arg);
+int cipher_id = I_CIPHER_ID_AES128;
+
+//클라이언트의 정보를 담고 있는 구조체
+typedef struct ClientSockInfo{
+	int sock;
+	char name[NAME_SIZE];
+	char msg[BUF_SIZE];
+	uint8_t key[16];
+	I_CIPHER_PARAMETERS param;
+} ClientSockInfo;
+
+void* send_msg(ClientSockInfo* arg);
+void* recv_msg(ClientSockInfo* arg);
+int recv_all(int msg_length, int sock, uint8_t* buf, uint32_t bufSize);
 void error_handling(char* message);
-
-char name[NAME_SIZE] = "[DEFAULT]";
-char msg[BUF_SIZE] = {0x00,};
-//대칭암호에 필요한 값
-uint8_t key[16] = {0x00, };
-uint32_t keylength = 0;
-uint32_t iv[16] = {0x00, };
-uint8_t ivlength = 16;
-int cipher_id = EDGE_CIPHER_ID_AES128;
-
-EDGE_ASYM_ENC_PARAM asym_param;
-EDGE_CIPHER_PARAMETERS cipher_param;
+void init_ClientSockInfo(ClientSockInfo* client);
 
 int main(int argc, char* argv[]){
-	int sock;
 	int ret = 0;
+	ClientSockInfo client;
 	struct sockaddr_in serv_addr;
 	pthread_t send_thread, recv_thread;
 	void* thread_return;
 
-	EDGE_ASYM_KEY_PARAM key_param;
-	uint8_t public_key[2048] = {0x00, };
-	uint32_t public_keylength = 0;
-	uint8_t private_key[2048] = {0x00, };
-	uint32_t private_keylength = 0;
+	uint8_t public_key[] = "-----BEGIN PUBLIC KEY-----\n"\
+              "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy8Dbv8prpJ/0kKhlGeJY\n"\
+              "ozo2t60EG8L0561g13R29LvMR5hyvGZlGJpmn65+A4xHXInJYiPuKzrKUnApeLZ+\n"\
+              "vw1HocOAZtWK0z3r26uA8kQYOKX9Qt/DbCdvsF9wF8gRK0ptx9M6R13NvBxvVQAp\n"\
+              "fc9jB9nTzphOgM4JiEYvlV8FLhg9yZovMYd6Wwf3aoXK891VQxTr/kQYoq1Yp+68\n"\
+              "i6T4nNq7NWC+UNVjQHxNQMQMzU6lWCX8zyg3yH88OAQkUXIXKfQ+NkvYQ1cxaMoV\n"\
+              "PpY72+eVthKzpMeyHkBn7ciumk5qgLTEJAfWZpe4f4eFZj/Rc8Y8Jj2IS5kVPjUy\n"\
+              "wQIDAQAB\n"\
+              "-----END PUBLIC KEY-----\n";
+	uint32_t public_keylength = strlen(public_key);
+
+	uint8_t private_key[] = "-----BEGIN RSA PRIVATE KEY-----\n"\
+               "MIIEowIBAAKCAQEAy8Dbv8prpJ/0kKhlGeJYozo2t60EG8L0561g13R29LvMR5hy\n"\
+               "vGZlGJpmn65+A4xHXInJYiPuKzrKUnApeLZ+vw1HocOAZtWK0z3r26uA8kQYOKX9\n"\
+               "Qt/DbCdvsF9wF8gRK0ptx9M6R13NvBxvVQApfc9jB9nTzphOgM4JiEYvlV8FLhg9\n"\
+               "yZovMYd6Wwf3aoXK891VQxTr/kQYoq1Yp+68i6T4nNq7NWC+UNVjQHxNQMQMzU6l\n"\
+               "WCX8zyg3yH88OAQkUXIXKfQ+NkvYQ1cxaMoVPpY72+eVthKzpMeyHkBn7ciumk5q\n"\
+               "gLTEJAfWZpe4f4eFZj/Rc8Y8Jj2IS5kVPjUywQIDAQABAoIBADhg1u1Mv1hAAlX8\n"\
+               "omz1Gn2f4AAW2aos2cM5UDCNw1SYmj+9SRIkaxjRsE/C4o9sw1oxrg1/z6kajV0e\n"\
+               "N/t008FdlVKHXAIYWF93JMoVvIpMmT8jft6AN/y3NMpivgt2inmmEJZYNioFJKZG\n"\
+               "X+/vKYvsVISZm2fw8NfnKvAQK55yu+GRWBZGOeS9K+LbYvOwcrjKhHz66m4bedKd\n"\
+               "gVAix6NE5iwmjNXktSQlJMCjbtdNXg/xo1/G4kG2p/MO1HLcKfe1N5FgBiXj3Qjl\n"\
+               "vgvjJZkh1as2KTgaPOBqZaP03738VnYg23ISyvfT/teArVGtxrmFP7939EvJFKpF\n"\
+               "1wTxuDkCgYEA7t0DR37zt+dEJy+5vm7zSmN97VenwQJFWMiulkHGa0yU3lLasxxu\n"\
+               "m0oUtndIjenIvSx6t3Y+agK2F3EPbb0AZ5wZ1p1IXs4vktgeQwSSBdqcM8LZFDvZ\n"\
+               "uPboQnJoRdIkd62XnP5ekIEIBAfOp8v2wFpSfE7nNH2u4CpAXNSF9HsCgYEA2l8D\n"\
+               "JrDE5m9Kkn+J4l+AdGfeBL1igPF3DnuPoV67BpgiaAgI4h25UJzXiDKKoa706S0D\n"\
+               "4XB74zOLX11MaGPMIdhlG+SgeQfNoC5lE4ZWXNyESJH1SVgRGT9nBC2vtL6bxCVV\n"\
+               "WBkTeC5D6c/QXcai6yw6OYyNNdp0uznKURe1xvMCgYBVYYcEjWqMuAvyferFGV+5\n"\
+               "nWqr5gM+yJMFM2bEqupD/HHSLoeiMm2O8KIKvwSeRYzNohKTdZ7FwgZYxr8fGMoG\n"\
+               "PxQ1VK9DxCvZL4tRpVaU5Rmknud9hg9DQG6xIbgIDR+f79sb8QjYWmcFGc1SyWOA\n"\
+               "SkjlykZ2yt4xnqi3BfiD9QKBgGqLgRYXmXp1QoVIBRaWUi55nzHg1XbkWZqPXvz1\n"\
+               "I3uMLv1jLjJlHk3euKqTPmC05HoApKwSHeA0/gOBmg404xyAYJTDcCidTg6hlF96\n"\
+               "ZBja3xApZuxqM62F6dV4FQqzFX0WWhWp5n301N33r0qR6FumMKJzmVJ1TA8tmzEF\n"\
+               "yINRAoGBAJqioYs8rK6eXzA8ywYLjqTLu/yQSLBn/4ta36K8DyCoLNlNxSuox+A5\n"\
+               "w6z2vEfRVQDq4Hm4vBzjdi3QfYLNkTiTqLcvgWZ+eX44ogXtdTDO7c+GeMKWz4XX\n"\
+               "uJSUVL5+CVjKLjZEJ6Qc2WZLl94xSwL71E41H4YciVnSCQxVc4Jw\n"\
+               "-----END RSA PRIVATE KEY-----\n";
+	uint32_t private_keylength = strlen(private_key);
 	uint8_t encKey[256];
 	uint32_t encKeylength = 0;
+	uint32_t keylength = 0;
 	int msg_length = 0;
 
-	ret = edge_crypto_init(NULL);
-	if(ret!=0){
-		print_result("edge_crypto_init", ret);
-		return ret;
-	}
-	edge_crypto_change_mode();
-
-	//init for symmetric	
-	memset(&cipher_param, 0, sizeof(EDGE_CIPHER_PARAMETERS));
-	cipher_param.m_padding = EDGE_CIPHER_PADDING_PKCS5;
-	memcpy(cipher_param.m_modeparam.m_iv, iv, ivlength);
-	cipher_param.m_modeparam.m_ivlength = ivlength;
-	cipher_param.m_mode = EDGE_CIPHER_MODE_CBC;
-	//init asym key
-	memset(&key_param, 0, sizeof(EDGE_ASYM_KEY_PARAM));
-	key_param.m_algorithm = EDGE_ASYM_ID_RSA;
-	key_param.rsa.m_bits = 2048;
-	key_param.rsa.m_exponent = 65537;
-	
-	//key 생성
-	ret = edge_asym_gen_keypair(public_key, &public_keylength, private_key, &private_keylength, &key_param);
-	if(ret != 0){
-		printf("fail generate key pair %d\n", ret);
-		return -1;
-	}
-	//key쌍 확인
-	ret = edge_asym_verify_keypair(public_key, &public_keylength, private_key, &private_keylength, &key_param);
-	if(ret != 0){
-		printf("fail verify key pair %d\n", ret);
-		return -1;
-	}
-	hexdump("public_key", public_key, public_keylength);
-	
-	//init for asymmetric
-	asym_param.m_encMode = EDGE_RSA_ENC_MODE_OAEP;
-	asym_param.m_oaep.m_hashAlg = EDGE_HASH_ID_SHA256;
-	asym_param.m_oaep.m_label = NULL;
-	asym_param.m_oaep.m_labelLength = 0;
-	asym_param.m_oaep.m_mgfHashAlg = EDGE_HASH_ID_SHA256;
+	//init client	
+	init_ClientSockInfo(&client);
+	client.param.mode = I_CIPHER_MODE_CBC;
 
 	if(argc != 4){//경로/ip/port/name
 		printf("Usage : %s <IP> <port> <name> \n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
-	sprintf(name, "[%s]", argv[3]);
-	sock = socket(PF_INET, SOCK_STREAM, 0);
+	//이름과 소켓을 구조체에 저장장
+	sprintf(client.name, "[%s]", argv[3]);
+	client.sock = socket(PF_INET, SOCK_STREAM, 0);
 
 	//init server info
 	memset(&serv_addr, 0, sizeof(serv_addr));
@@ -97,46 +99,90 @@ int main(int argc, char* argv[]){
 	serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
 	serv_addr.sin_port=htons(atoi(argv[2]));
 
-	connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+	//연결
+	connect(client.sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+
 	//연결에 성공하면 서버에 공개키의 길이와 공개키를 보냄
-	send(sock, public_key, public_keylength, 0);
+	msg_length = htonl(public_keylength);
+	send(client.sock, &msg_length, sizeof(msg_length), 0);
+	send(client.sock, public_key, public_keylength, 0);
+
 	//자신이 보낸 공개키로 암호화된 대칭키를 서버로부터 획득
-	encKeylength = recv(sock, encKey, 256, 0);
+	msg_length = 0;
+	recv(client.sock, &msg_length, sizeof(msg_length), 0);
+	msg_length = ntohl(msg_length);
+	encKeylength = recv(client.sock, encKey, 256, 0);
+	if(msg_length != encKeylength){//데이터 크기 검증
+		printf("main error, encKeylength : %d, msg_length : %d\n", encKeylength, msg_length);
+		return -1;
+	}
 	hexdump("encKey", encKey, encKeylength);
+
 	//암호화된 대칭키를 자신의 개인키로 복호화하여 최종적으로 대칭키 획득
-	ret = edge_asym_dec(private_key, private_keylength, &asym_param, encKey, encKeylength, key, &keylength);
-	if(ret!=0){
-		printf("fail dec\n");
+	recv(client.sock, &keylength, sizeof(keylength), 0);//원본 대칭키의 길이를 받음
+	keylength = ntohl(keylength);
+	ret = private_decrypt(encKey, encKeylength, private_key, client.key);
+	if(ret==-1 || ret != keylength){
+		printf("failed dec key\n");
+		printf("ret %d, key %d\n", ret, keylength);
 		return ret;
 	}
-	hexdump("key", key, keylength);
+	hexdump("key", client.key, 16);
 
-	pthread_create(&send_thread, NULL, send_msg, (void*)&sock);
-	pthread_create(&recv_thread, NULL, recv_msg, (void*)&sock);
+	//쓰레드 생성
+	pthread_create(&send_thread, NULL, send_msg, (void*)&client);
+	pthread_create(&recv_thread, NULL, recv_msg, (void*)&client);
 
 	pthread_join(send_thread, &thread_return);
 	pthread_join(recv_thread, &thread_return);
-	close(sock);
 
-	edge_crypto_final();
+	close(client.sock);
 	
 	return 0;
 }
 
-void* send_msg(void* arg){//전체 메시지를 암호화해서 서버에 전송
-	int sock = *((int*)arg);
-	char name_msg[NAME_SIZE + BUF_SIZE] ={0x00, };//buffer for sending message with name
+//ClientSockInfo 구조체 초기화
+void init_ClientSockInfo(ClientSockInfo* client){
+	memset(client, 0, sizeof(ClientSockInfo));
+	memset(&(client->param), 0, sizeof(I_CIPHER_PARAMETERS));
+	memset(client->param.iv, 0, 16);
+	client->param.ivlength = 16;
+}
 
+int recv_all(int msg_length, int sock, uint8_t* buf, uint32_t bufSize){
+	int ret = 0;
+	while(ret != msg_length){
+		ret = recv(sock, buf, bufSize, 0);
+	}
+	return ret;
+}
+
+//전체 메시지를 암호화해서 서버에 전송
+void* send_msg(ClientSockInfo* client){
+	char msg[BUF_SIZE] = {0x00, };
+	char name_msg[NAME_SIZE + BUF_SIZE] ={0x00, };//buffer for sending message with name
+	AES_KEY encKey;
+	//clinet = (CliencSockInfo*)client;
 	uint8_t encData[256] = {0x00, };
 	uint32_t encDataLength = 0;
+	uint32_t msg_length = 0;//메세지를 보내기 전, 메시지 크기를 보내기 위한 변수(htonl()로 빅엔디안으로 크기를 담음)
+
+	//대칭키 생성
+	if(AES_set_encrypt_key(client->key, 128, &(encKey)) < 0){
+		printf("key 생성 오류\n");
+		return 0;
+	}
 
 	//처음 연결 성고하면 연결 메시지 보냄
-	sprintf(name_msg, "%s %s", name, "Connected...\n");
-	i_enc(cipher_id, key, keylength, &cipher_param, name_msg, strlen(name_msg), encData, &encDataLength);
-	write(sock, encData, encDataLength);//크기를 보낸 후 메세지를 보냄
+	sprintf(name_msg, "%s %s", client->name, "Connected...\n");
+	i_enc(cipher_id, &encKey, &(client->param), name_msg, strlen(name_msg), encData, &encDataLength);
+	msg_length = htonl(encDataLength);//보낼 데이터의 크기를 빅엔디안으로 저장
+	write(client->sock, &msg_length, sizeof(msg_length));//크기부터 보냄
+	write(client->sock, encData, encDataLength);//크기를 보낸 후 메세지를 보냄
 	
 	while(1){
-		memset(msg, 0, BUF_SIZE);
+		msg_length = 0;
+		memset(msg, 0 , BUF_SIZE);
 		memset(name_msg, 0, NAME_SIZE+BUF_SIZE);
 		memset(encData, 0, 256);
 		encDataLength = 0;
@@ -144,39 +190,63 @@ void* send_msg(void* arg){//전체 메시지를 암호화해서 서버에 전송
 		fgets(msg, BUF_SIZE, stdin);
 		//q or Q를 입력받으면 클로즈 메시지 보내고 소켓 종료
 		if(!strcmp(msg, "q\n") || !strcmp(msg, "Q\n")){
-			sprintf(name_msg, "%s %s", name, "Closed...\n");
-			i_enc(cipher_id, key, keylength, &cipher_param, name_msg, strlen(name_msg), encData, &encDataLength);
-			write(sock, encData, encDataLength);
-			close(sock);
+			sprintf(name_msg, "%s %s", client->name, "Closed...\n");
+			i_enc(cipher_id, &encKey, &(client->param), name_msg, strlen(name_msg), encData, &encDataLength);
+			msg_length = htonl(encDataLength);
+			write(client->sock, &msg_length, sizeof(msg_length));
+			write(client->sock, encData, encDataLength);
+			close(client->sock);
 			exit(EXIT_SUCCESS);
 		}
-		sprintf(name_msg, "%s %s", name, msg);
-		i_enc(cipher_id, key, keylength, &cipher_param, name_msg, strlen(name_msg), encData, &encDataLength);
-		write(sock, encData, encDataLength);
+		sprintf(name_msg, "%s %s", client->name, msg);
+		i_enc(cipher_id, &encKey, &(client->param), name_msg, strlen(name_msg), encData, &encDataLength);
+		msg_length = htonl(encDataLength);
+		write(client->sock, &msg_length, sizeof(msg_length));
+		write(client->sock, encData, encDataLength);
 	}
 
 	return NULL;
 }
-
-void* recv_msg(void* arg){//서버로부터 받은 다른 클라이언트의 메시지를 복호화하여 콘솔에 출력
-	int sock = *((int*)arg);
+//서버로부터 받은 다른 클라이언트의 메시지를 복호화하여 콘솔에 출력
+void* recv_msg(ClientSockInfo* client){
 	char name_msg[NAME_SIZE+BUF_SIZE] = {0x00,};
+	int msg_length = 0;
 	int str_len = 0;
+	AES_KEY decKey;
 	uint8_t decData[256] = {0x00,};
 	uint32_t decDataLength = 0;
 
+	//대칭키 생성
+	if(client->param.mode == I_CIPHER_MODE_CTR){//ctr모드이면 encrypt키로 키 설정
+		if(AES_set_encrypt_key(client->key, 128, &decKey) < 0){
+			printf("decKey 생성 오류\n");
+			return 0;
+		}
+	}
+	else{
+		if(AES_set_decrypt_key(client->key, 128, &decKey) < 0){
+			printf("encKey 생성 오류\n");
+			return 0;
+		}
+	}
+	//recv msg...
 	while(1){
-		str_len = read(sock, name_msg, NAME_SIZE+BUF_SIZE-1);
-		//name_msg[str_len] = '\0';
-		i_dec(cipher_id, key, keylength, &cipher_param, name_msg, str_len, decData, &decDataLength);
+		read(client->sock, &msg_length, sizeof(msg_length));
+		msg_length = ntohl(msg_length);
+		str_len = read(client->sock, name_msg, NAME_SIZE+BUF_SIZE-1);
+		if(str_len == -1 || str_len != msg_length){
+			printf("recv_msg()에러 str_len = %d, msg_length = %d\n", str_len, msg_length);
+			return (void*)-1;
+		}
+		i_dec(cipher_id, &decKey, &(client->param), name_msg, str_len, decData, &decDataLength);
 		decData[decDataLength] = '\0';
 		fputs(decData, stdout);
 		memset(name_msg, 0, NAME_SIZE+BUF_SIZE);
 		memset(decData, 0, decDataLength);
 		decDataLength = 0;
+		msg_length = 0;
 		str_len = 0;
 	}
-
 	return NULL;
 }
 
