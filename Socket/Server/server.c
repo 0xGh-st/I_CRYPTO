@@ -60,10 +60,12 @@ int main(int argc, char* argv[]){
 
 	while(1){
 		int msg_length = 0;
+		
 		//accept client, and create new socket
 		clnt_addr_size = sizeof(clnt_addr);
 		clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_addr, &clnt_addr_size);
 		printf("Connected IP : %s\n", inet_ntoa(clnt_addr.sin_addr));
+		
 		//클라이언트의 공개키를 받음
 		recv(clnt_sock, &msg_length, sizeof(msg_length), 0);
 		msg_length = ntohl(msg_length);
@@ -73,6 +75,7 @@ int main(int argc, char* argv[]){
 			return -1;
 		}
 		hexdump("client_public_key", client_public_key, client_public_keylength);
+		
 		//클라이언트의 공개키로 대칭키를 암호화
 		ret = public_encrypt(key, keylength, client_public_key, encKey);
 		if(ret == -1){
@@ -80,6 +83,7 @@ int main(int argc, char* argv[]){
 			return ret;
 		}
 		encKeylength = ret;
+		
 		//I_asym_enc(client_public_key, client_public_keylength, &param, key, keylength, encKey, &encKeylength);  
 		hexdump("key", key, keylength);
 		hexdump("encKey", encKey, encKeylength);

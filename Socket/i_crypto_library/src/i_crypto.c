@@ -122,14 +122,24 @@ I_LOCAL int dec_ecb_to_cbc(int p_cipher_id, //dec cbc_using_ecb
 	return ret;
 }
 
-I_LOCAL int enc_ctr_mode(int 	    p_cipher_id,
+I_LOCAL void i_inc_counter(uint8_t* counter, uint32_t counterlength){
+	//ctr is big-endian
+	//openssl에서 16바이트 counter를 uint32(4바이트)단위로 4개씩 끊어 증가 시키기 때문에
+	for(int i=counterlength-sizeof(uint32_t);i>=0;i-=sizeof(uint32_t)){
+		uint32_t value = (*((uint32_t*)(counter+i)))++;
+		uint32_t carry = !value;
+		if(carry == 0) return;
+	}
+}
+
+I_LOCAL int enc_ctr_mode(int p_cipher_id,
 	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,
 	uint8_t* p_output,
 	uint32_t* p_outputlength,
-	uint8_t* counter,
-	uint32_t counterlength) {
+	uint8_t* p_counter,
+	uint32_t p_counterlength) {
 
 	int			 ret = 0;
 	uint8_t      block[16];
@@ -140,24 +150,24 @@ I_LOCAL int enc_ctr_mode(int 	    p_cipher_id,
 
 	//마지막 블록 전까지
 	for (int i = 0; i < blockNum; i++) {
-		AES_ecb_encrypt(counter, ecb_output, p_key, AES_ENCRYPT);
+		AES_ecb_encrypt(p_counter, ecb_output, p_key, AES_ENCRYPT);
+		i_inc_counter(p_counter, p_counterlength);
 		for (int j = dataIndex; j < blocklength + dataIndex; j++)
 			p_output[j] = ecb_output[j % blocklength] ^ p_input[j];
-		(*((int*)counter))++;
 		*p_outputlength += blocklength;
 		dataIndex += blocklength;
 	}
 	return ret;
 }
 
-I_LOCAL int dec_ctr_mode(int 	    p_cipher_id,
+I_LOCAL int dec_ctr_mode(int p_cipher_id,
 	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,
 	uint8_t* p_output,
 	uint32_t* p_outputlength,
-	uint8_t* counter,
-	uint32_t counterlength) {
+	uint8_t* p_counter,
+	uint32_t p_counterlength) {
 
 	int			 ret = 0;
 	uint8_t      block[16];
@@ -165,12 +175,12 @@ I_LOCAL int dec_ctr_mode(int 	    p_cipher_id,
 	uint8_t      ecb_output[16] = { 0x00, };
 	uint32_t     dataIndex = 0; //block의 길이만큼 증가하는 데이터의 인덱스
 	uint32_t	 blockNum = p_inputlength / blocklength;
-
+	
 	for (int i = 0; i < blockNum; i++) {
-		AES_ecb_encrypt(counter, ecb_output, p_key, AES_ENCRYPT);
+		AES_ecb_encrypt(p_counter, ecb_output, p_key, AES_ENCRYPT);
+		i_inc_counter(p_counter, p_counterlength);
 		for (int j = dataIndex; j < blocklength + dataIndex; j++)
 			p_output[j] = ecb_output[j % blocklength] ^ p_input[j];
-		(*((int*)counter))++;
 		*p_outputlength += blocklength;
 		dataIndex += blocklength;
 	}
@@ -191,7 +201,7 @@ I_EXPORT int i_enc(int p_cipher_id,
 	uint32_t     dataIndex = 0; //block의 길이만큼 증가하는 데이터의 인덱스
 	uint32_t	 blockNum = p_inputlength / blocklength + 1;//padding인덱스 포함
 	uint8_t		 lastBlockpreBlock[16];
-
+	
 	if (p_inputlength >= blocklength) {
 		switch (p_param->mode) {
 		case I_CIPHER_MODE_CBC:
@@ -235,14 +245,13 @@ I_EXPORT int i_enc(int p_cipher_id,
 		break;
 	case I_CIPHER_MODE_CTR:
 		AES_ecb_encrypt(p_param->iv, lastBlockpreBlock, p_key, AES_ENCRYPT);
-		(*((int*)(p_param->iv)))++;
 		for (int i = 0; i < blocklength; i++)
 			p_output[*p_outputlength + i] = block[i] ^ lastBlockpreBlock[i];
 
 		break;
 	}
 	*p_outputlength += blocklength;
-	/*
+	/* 소켓 통신에서는 출력하지 않음
 	//print_result
 	printf("\n##======================  enc start   ======================##\n");
 	hexdump("input", p_input, p_inputlength);
@@ -280,7 +289,6 @@ I_EXPORT int i_dec(int p_cipher_id,
 		break;
 	case I_CIPHER_MODE_CTR:
 		//In the CTR Mode, iv is counter
-		(*((int*)p_param->iv)) -= (blockNum - 1);//enc과정에서 카운터가 증가한 값만큼 빼기
 		ret = dec_ctr_mode(p_cipher_id, p_key, p_input, p_inputlength, p_output, p_outputlength, p_param->iv, p_param->ivlength);
 		if (ret != 0) {
 			printf("i_dec %d", ret);
@@ -299,7 +307,8 @@ I_EXPORT int i_dec(int p_cipher_id,
 		}
 	}
 	*p_outputlength -= p_output[*p_outputlength - 1];
-	/*
+
+	/* 소켓 통신에서는 출력하지 않음
 	//print_result
 	printf("\n##======================  dec start   ======================##\n");
 	hexdump("input", p_input, p_inputlength);
@@ -407,7 +416,6 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 				p_context->param.iv[i] = p_output[*p_outputlength + i];
 			break;
 		case I_CIPHER_MODE_CTR:
-			printf("test...\n");
 			//CTR mode -> counter부터 암호화
 			AES_ecb_encrypt(p_context->param.iv, p_output + *p_outputlength, &(p_context->key), AES_ENCRYPT);
 			if (p_context->bufferSize == blocklength){
@@ -421,6 +429,8 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 				remainLength -= blocklength;
 				remainDataStartIndex += blocklength;
 			}
+			//counter 증가
+			i_inc_counter(p_context->param.iv, p_context->param.ivlength);
 			break;
 		}
 		*p_outputlength += blocklength;//암호화가 되었다면 outputlength 증가
@@ -492,7 +502,7 @@ I_EXPORT int i_dec_init(I_CIPHER_CTX* p_context, const int p_cipher_id, uint8_t*
 	p_context->param.mode = p_param->mode;
 	p_context->param.ivlength = p_param->ivlength;
 	memcpy(p_context->param.iv, p_param->iv, p_context->param.ivlength);
-
+	
 	return 0;
 }
 
@@ -552,6 +562,8 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 				remainLength -= blocklength;
 				remainDataStartIndex += blocklength;
 			}
+			//counter 증가
+			i_inc_counter(p_context->param.iv, p_context->param.ivlength);
 			break;
 		}
 		*p_outputlength += blocklength; //복호화가 진행되었다면 outputlength 증가
@@ -582,10 +594,9 @@ I_EXPORT int i_dec_final(I_CIPHER_CTX* p_context, uint32_t* p_paddinglength) {
 	return ret;
 }
  
-
 int padding = RSA_PKCS1_PADDING;
 
-I_EXPORT RSA * createRSA(unsigned char * key, int public){
+I_LOCAL RSA * createRSA(unsigned char * key, int public){
     RSA *rsa= NULL;
     BIO *keybio ;
     keybio = BIO_new_mem_buf(key, -1); // 읽기 전용 메모리 만들기 BIO

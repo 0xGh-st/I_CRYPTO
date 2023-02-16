@@ -76,6 +76,7 @@ int main(int argc, char* argv[]){
                "uJSUVL5+CVjKLjZEJ6Qc2WZLl94xSwL71E41H4YciVnSCQxVc4Jw\n"\
                "-----END RSA PRIVATE KEY-----\n";
 	uint32_t private_keylength = strlen(private_key);
+	
 	uint8_t encKey[256];
 	uint32_t encKeylength = 0;
 	uint32_t keylength = 0;
@@ -152,7 +153,7 @@ void init_ClientSockInfo(ClientSockInfo* client){
 int recv_all(int msg_length, int sock, uint8_t* buf, uint32_t bufSize){
 	int ret = 0;
 	while(ret != msg_length){
-		ret = recv(sock, buf, bufSize, 0);
+		ret += recv(sock, buf, bufSize, 0);
 	}
 	return ret;
 }

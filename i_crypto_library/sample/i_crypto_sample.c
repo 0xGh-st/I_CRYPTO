@@ -89,7 +89,6 @@ int origin_sample(int 	p_cipher_id, //sample_of_original_cbc
 	memcpy(param.iv, p_iv, p_ivlength);//cbc_encrypt에서 iv를 변경하므로
 	AES_cbc_encrypt( p_output, decData, *p_outputlength, decKey, param.iv, AES_DECRYPT);
 	hexdump("output", decData, *p_outputlength);
-
 	printf("##======================    origin_sample() end    ======================##\n");
 
 	return ret;
@@ -140,19 +139,16 @@ int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode) {
 	printf("\n\n===============================i_enc_dec_sample_start===================================\n\n");
 	
 	//기존 openssl을 이용한 암복호화 예시
-	ret = origin_sample(cipher_id, &encKey, &decKey, p_input, p_inputlength, output, &outputlength, param.iv, param.ivlength, blockmode);
-	if(ret != 0) return ret;
-	printf("\n\n==================================================================\n\n");
-	
-	void *ctx = NULL;
-	ctx = i_ctx_new();
-	i_enc_init(ctx, I_CIPHER_ID_AES128, zeroKey, &param);
+	// ret = origin_sample(cipher_id, &encKey, &decKey, p_input, p_inputlength, output, &outputlength, param.iv, param.ivlength, blockmode);
+	// if(ret != 0) return ret;
+	// printf("\n\n==================================================================\n\n");
 
 	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
 	ret = i_enc(cipher_id, &encKey, &param, p_input, p_inputlength, output2, &output2length);
 	if (ret != 0) return ret;
 	printf("\n\n==================================================================\n\n");
 	
+	if(blockmode = I_CIPHER_MODE_CTR) memset(param.iv, 0, param.ivlength);//ctr모드이면 param의 iv를 원래 iv로 바꿔주어야 한다. 
 	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 복호화
 	ret = i_dec(cipher_id, &decKey, &param, output2, output2length, decdata, &decdatalength);
 	if (ret != 0) return ret;
