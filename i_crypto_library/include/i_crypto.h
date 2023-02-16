@@ -177,7 +177,7 @@ I_EXPORT int i_dec_update				(I_CIPHER_CTX* p_context,
  * @return int 성공시 0 실패시 그 외
 */
 I_EXPORT int i_dec_final				(I_CIPHER_CTX* p_context, 
-										uint32_t* p_paddinglength);
+										 uint32_t* p_paddinglength);
 
 
 I_EXPORT int public_encrypt(unsigned char * data,int data_len,unsigned char * key, unsigned char *encrypted);

@@ -21,6 +21,7 @@ typedef struct ClientSockInfo{
 	char name[NAME_SIZE];
 	char msg[BUF_SIZE];
 	uint8_t key[16];
+	int flag;
 	I_CIPHER_PARAMETERS param;
 } ClientSockInfo;
 
@@ -115,6 +116,7 @@ int main(int argc, char* argv[]){
 	encKeylength = recv(client.sock, encKey, 256, 0);
 	if(msg_length != encKeylength){//데이터 크기 검증
 		printf("main error, encKeylength : %d, msg_length : %d\n", encKeylength, msg_length);
+		close(client.sock);
 		return -1;
 	}
 	hexdump("encKey", encKey, encKeylength);
@@ -126,6 +128,7 @@ int main(int argc, char* argv[]){
 	if(ret==-1 || ret != keylength){
 		printf("failed dec key\n");
 		printf("ret %d, key %d\n", ret, keylength);
+		close(client.sock);
 		return ret;
 	}
 	hexdump("key", client.key, 16);
@@ -135,6 +138,10 @@ int main(int argc, char* argv[]){
 	pthread_create(&recv_thread, NULL, recv_msg, (void*)&client);
 
 	pthread_join(send_thread, &thread_return);
+	if(client.flag == 1){
+		printf("모든 쓰레드를 종료합니다.\n");
+		pthread_cancel(recv_thread);
+	}
 	pthread_join(recv_thread, &thread_return);
 
 	close(client.sock);
@@ -196,8 +203,10 @@ void* send_msg(ClientSockInfo* client){
 			msg_length = htonl(encDataLength);
 			write(client->sock, &msg_length, sizeof(msg_length));
 			write(client->sock, encData, encDataLength);
-			close(client->sock);
-			exit(EXIT_SUCCESS);
+			client->flag = 1;
+			break;
+			//close(client->sock);
+			//exit(EXIT_SUCCESS);
 		}
 		sprintf(name_msg, "%s %s", client->name, msg);
 		i_enc(cipher_id, &encKey, &(client->param), name_msg, strlen(name_msg), encData, &encDataLength);
