@@ -8,11 +8,13 @@
 #include <pthread.h>
 #include "i_crypto.h"
 
-#define BUF_SIZE 100
+#define BUF_SIZE 256
 #define MAX_CLNT 256
 
 void* handle_clnt(void* arg);
 void send_msg(int clnt_sock, char* msg, int len);
+int recv_all(int msg_length, int sock, uint8_t* buf);
+int read_all(int msg_length, int sock, uint8_t* buf);
 void error_handling(char* message);
 
 int clnt_cnt = 0;
@@ -69,8 +71,8 @@ int main(int argc, char* argv[]){
 		//클라이언트의 공개키를 받음
 		recv(clnt_sock, &msg_length, sizeof(msg_length), 0);
 		msg_length = ntohl(msg_length);
-		client_public_keylength = recv(clnt_sock, client_public_key, 2048, 0);
-		if(msg_length != client_public_keylength){
+		client_public_keylength = recv_all(msg_length, clnt_sock, client_public_key);
+		if(msg_length != client_public_keylength || client_public_keylength == -1){
 			printf("main error, client_public_keylength : %d, msg_length : %d\n", client_public_keylength, msg_length);
 			return -1;
 		}
@@ -110,6 +112,36 @@ int main(int argc, char* argv[]){
 	}
 	return 0;
 }
+//전송 받을 메시지의 크기를 먼저 받았을 때 그 크기만큼 데이터를 읽는 함수(recv함수가 한번에 모든 데이터를 다 안읽어왔을수도 있기 때문)
+int recv_all(int msg_length, int sock, uint8_t* buf){
+	int ret = 0;
+
+	time_t startTime = 0;
+	time_t currentTime = 0;
+	//5초동안 recv하지 못하면 timeout
+	time(&startTime);
+	while(ret != msg_length){
+		time(&currentTime);
+		if(currentTime-startTime>5) return -1;
+		ret += recv(sock, buf+ret, msg_length-ret, 0);
+	}
+	return ret;
+}
+//전송 받을 메시지의 크기를 먼저 받았을 때 그 크기만큼 데이터를 읽는 함수(read함수가 한번에 모든 데이터를 다 안읽어왔을수도 있기 때문)
+int read_all(int msg_length, int sock, uint8_t* buf){
+	int ret = 0;
+
+	time_t startTime = 0;
+	time_t currentTime = 0;
+	//5초동안 read하지 못하면 timeout
+	time(&startTime);
+	while(ret != msg_length){
+		time(&currentTime);
+		if(currentTime-startTime>5) return -1;
+		ret += read(sock, buf+ret, msg_length-ret);
+	}
+	return ret;
+}
 
 void* handle_clnt(void* arg){
 	int clnt_sock = *((int*)arg); //파일 디스크립터
@@ -118,19 +150,21 @@ void* handle_clnt(void* arg){
 	char msg[BUF_SIZE] = {0x00, };
 	
 	//클라이언트로부터 EOF를 받을 때까지
-	while(read(clnt_sock, &msg_length, sizeof(msg_length)) != 0 && (str_len = read(clnt_sock, msg, BUF_SIZE)) != 0){
+	while(read(clnt_sock, &msg_length, sizeof(msg_length)) != 0 ){
 		msg_length = ntohl(msg_length);
-		if(msg_length != str_len){//먼저 받은 데이터 크기와 실제 받은 데이터 크기가 같은지 비교
+		str_len = read_all(msg_length, clnt_sock, msg);
+		if(msg_length != str_len || str_len == -1){//먼저 받은 데이터 크기와 실제 받은 데이터 크기가 같은지 비교
 			printf("handle_clnt error, str_len = %d, msg_length = %d\n", str_len, msg_length);
-			return (void*)-1;
+			exit(EXIT_FAILURE);
 		}
+		pthread_mutex_lock(&mutx);
 		hexdump("enc...", msg, str_len);
+		pthread_mutex_unlock(&mutx);
 		send_msg(clnt_sock, msg, str_len);
 		memset(msg, 0, BUF_SIZE);
 		msg_length = 0;
 		str_len = 0;
 	}
-
 	//종료 신호를 보낸 해당 클라이언트 삭제
 	pthread_mutex_lock(&mutx);
 	for(int i=0;i<clnt_cnt;i++){

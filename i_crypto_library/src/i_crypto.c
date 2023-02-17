@@ -617,56 +617,6 @@ I_EXPORT int i_dec_final(I_CIPHER_CTX* p_context, uint32_t* p_paddinglength) {
 	return ret;
 }
  
-int padding = RSA_PKCS1_PADDING;
-
-I_LOCAL RSA * createRSA(unsigned char * key, int public){
-    RSA *rsa= NULL;
-    BIO *keybio ;
-    keybio = BIO_new_mem_buf(key, -1); // 읽기 전용 메모리 만들기 BIO
-    if (keybio==NULL){
-        printf( "Failed to create key BIO");
-        return 0;
-    }
-    /* PEM형식인 키 파일을 읽어와서 RSA 구조체 형식으로 변환 */
-    if(public){ // PEM public 키로 RSA 생성
-        rsa = PEM_read_bio_RSA_PUBKEY(keybio, &rsa, NULL, NULL);
-    }
-	else{ // PEM private 키로 RSA 생성
-        rsa = PEM_read_bio_RSAPrivateKey(keybio, &rsa, NULL, NULL);
-    }
-    if(rsa == NULL)
-        printf( "Failed to create RSA");
- 
-    return rsa;
-}
-
-//RSA 암복호화를 위한 함수
-/* 공개키로 암호화 */
-I_EXPORT int public_encrypt(unsigned char * data, int data_len, unsigned char * key, unsigned char *encrypted) {
-    RSA * rsa = createRSA(key,1);
-    int result = RSA_public_encrypt(data_len, data, encrypted, rsa, padding);
-    return result; // RSA_public_encrypt() returns the size of the encrypted data 
-}
-/* 개인키로 복호화 */
-I_EXPORT int private_decrypt(unsigned char * enc_data, int data_len, unsigned char * key, unsigned char *decrypted){
-    RSA * rsa = createRSA(key,0);
-    int  result = RSA_private_decrypt(data_len, enc_data, decrypted, rsa,padding);
-    return result;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 I_EXPORT int i_enc_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_inputlength, uint8_t* p_output, uint32_t* p_outputlength) {
 	int     ret = 0;
 
@@ -720,7 +670,6 @@ I_EXPORT int i_enc_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t
 
 	return ret;
 }
-
 
 I_EXPORT int i_dec_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_inputlength, uint8_t* p_output, uint32_t* p_outputlength) {
 	int     ret = 0;
@@ -781,4 +730,41 @@ I_EXPORT int i_dec_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t
 	}
 
 	return ret;
+}
+
+
+//RSA 암복호화를 위한 함수
+int padding = RSA_PKCS1_PADDING;
+
+I_LOCAL RSA * createRSA(unsigned char * key, int public){
+    RSA *rsa= NULL;
+    BIO *keybio ;
+    keybio = BIO_new_mem_buf(key, -1); // 읽기 전용 메모리 만들기 BIO
+    if (keybio==NULL){
+        printf( "Failed to create key BIO");
+        return 0;
+    }
+    /* PEM형식인 키 파일을 읽어와서 RSA 구조체 형식으로 변환 */
+    if(public){ // PEM public 키로 RSA 생성
+        rsa = PEM_read_bio_RSA_PUBKEY(keybio, &rsa, NULL, NULL);
+    }
+	else{ // PEM private 키로 RSA 생성
+        rsa = PEM_read_bio_RSAPrivateKey(keybio, &rsa, NULL, NULL);
+    }
+    if(rsa == NULL)
+        printf( "Failed to create RSA");
+ 
+    return rsa;
+}
+/* 공개키로 암호화 */
+I_EXPORT int public_encrypt(unsigned char * data, int data_len, unsigned char * key, unsigned char *encrypted) {
+    RSA * rsa = createRSA(key,1);
+    int result = RSA_public_encrypt(data_len, data, encrypted, rsa, padding);
+    return result; // RSA_public_encrypt() returns the size of the encrypted data 
+}
+/* 개인키로 복호화 */
+I_EXPORT int private_decrypt(unsigned char * enc_data, int data_len, unsigned char * key, unsigned char *decrypted){
+    RSA * rsa = createRSA(key,0);
+    int  result = RSA_private_decrypt(data_len, enc_data, decrypted, rsa,padding);
+    return result;
 }

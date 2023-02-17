@@ -26,8 +26,7 @@ typedef struct ClientSockInfo{
 
 void* send_msg(ClientSockInfo* arg);
 void* recv_msg(ClientSockInfo* arg);
-int recv_all(int msg_length, int sock, uint8_t* buf);
-int read_all(int msg_length, int sock, uint8_t* buf);
+int recv_all(int msg_length, int sock, uint8_t* buf, uint32_t bufSize);
 void error_handling(char* message);
 void init_ClientSockInfo(ClientSockInfo* client);
 
@@ -108,13 +107,13 @@ int main(int argc, char* argv[]){
 	msg_length = htonl(public_keylength);
 	send(client.sock, &msg_length, sizeof(msg_length), 0);
 	send(client.sock, public_key, public_keylength, 0);
-	
+
 	//자신이 보낸 공개키로 암호화된 대칭키를 서버로부터 획득
 	msg_length = 0;
 	recv(client.sock, &msg_length, sizeof(msg_length), 0);
 	msg_length = ntohl(msg_length);
-	encKeylength = recv_all(msg_length, client.sock, encKey);
-	if(encKeylength == -1 || encKeylength != msg_length){
+	encKeylength = recv(client.sock, encKey, 256, 0);
+	if(msg_length != encKeylength){//데이터 크기 검증
 		printf("main error, encKeylength : %d, msg_length : %d\n", encKeylength, msg_length);
 		close(client.sock);
 		return -1;
@@ -139,7 +138,7 @@ int main(int argc, char* argv[]){
 
 	pthread_join(send_thread, &thread_return);
 	if(client.flag == 1){
-		printf("연결을 종료합니다.\n");
+		printf("모든 쓰레드를 종료합니다.\n");
 		pthread_cancel(recv_thread);
 	}
 	pthread_join(recv_thread, &thread_return);
@@ -157,33 +156,17 @@ void init_ClientSockInfo(ClientSockInfo* client){
 	client->param.ivlength = 16;
 }
 
-//전송 받을 메시지의 크기를 먼저 받았을 때 그 크기만큼 데이터를 읽는 함수(recv함수가 한번에 모든 데이터를 다 안읽어왔을수도 있기 때문)
-int recv_all(int msg_length, int sock, uint8_t* buf){
+int recv_all(int msg_length, int sock, uint8_t* buf, uint32_t bufSize){
 	int ret = 0;
 
 	time_t startTime = 0;
 	time_t currentTime = 0;
-	//5초동안 recv하지 못하면 timeout
+	//3초동안 recv하지 못하면 timeout
 	time(&startTime);
 	while(ret != msg_length){
 		time(&currentTime);
-		if(currentTime-startTime>5) return -1;
-		ret += recv(sock, buf+ret, msg_length-ret, 0);
-	}
-	return ret;
-}
-//전송 받을 메시지의 크기를 먼저 받았을 때 그 크기만큼 데이터를 읽는 함수(read함수가 한번에 모든 데이터를 다 안읽어왔을수도 있기 때문)
-int read_all(int msg_length, int sock, uint8_t* buf){
-	int ret = 0;
-
-	time_t startTime = 0;
-	time_t currentTime = 0;
-	//5초동안 read하지 못하면 timeout
-	time(&startTime);
-	while(ret != msg_length){
-		time(&currentTime);
-		if(currentTime-startTime>5) return -1;
-		ret += read(sock, buf+ret, msg_length-ret);
+		if(currentTime-startTime>3) return -1;
+		ret += recv(sock, buf, bufSize, 0);
 	}
 	return ret;
 }
@@ -204,17 +187,13 @@ void* send_msg(ClientSockInfo* client){
 		return 0;
 	}
 
-	//처음 연결 성공하면 연결 메시지 보냄
+	//처음 연결 성고하면 연결 메시지 보냄
 	sprintf(name_msg, "%s %s", client->name, "Connected...\n");
 	i_enc(cipher_id, &encKey, &(client->param), name_msg, strlen(name_msg), encData, &encDataLength);
 	msg_length = htonl(encDataLength);//보낼 데이터의 크기를 빅엔디안으로 저장
 	write(client->sock, &msg_length, sizeof(msg_length));//크기부터 보냄
 	write(client->sock, encData, encDataLength);//크기를 보낸 후 메세지를 보냄
-	//for test....
-	// msg[0] = client->name[strlen(client->name)-2];
-	// for(int i=1;i<99;i++)
-	// 	msg[i] = 'a' + (i%26);
-	// msg_length = 100;
+	
 	while(1){
 		msg_length = 0;
 		memset(msg, 0 , BUF_SIZE);
@@ -270,7 +249,7 @@ void* recv_msg(ClientSockInfo* client){
 	while(1){
 		read(client->sock, &msg_length, sizeof(msg_length));
 		msg_length = ntohl(msg_length);
-		str_len = read_all(msg_length, client->sock, name_msg);
+		str_len = read(client->sock, name_msg, NAME_SIZE+BUF_SIZE-1);
 		if(str_len == -1 || str_len != msg_length){
 			printf("recv_msg()에러 str_len = %d, msg_length = %d\n", str_len, msg_length);
 			return (void*)-1;
