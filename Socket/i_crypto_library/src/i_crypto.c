@@ -48,8 +48,31 @@ typedef struct I_CIPHER_CTX{
 	uint8_t	 lastDecBlock[16];
 	I_CIPHER_PARAMETERS param;
 }I_CIPHER_CTX; 
+
+//매개변수에 대한 에러처리
+I_LOCAL int check_parameters(uint8_t* str, AES_KEY* p_key, I_CIPHER_PARAMETERS *p_param, uint8_t* p_input, uint8_t* p_output){
+	int ret = 0;
+	
+	if(p_key == NULL || p_input == NULL || p_output == NULL){
+		ret = -1;
+		printf("%s : invalid parameter (%d)\n", str, ret);
+		return ret;
+	}
+	if(p_param->mode != I_CIPHER_MODE_CBC && p_param->mode != I_CIPHER_MODE_CTR){
+		ret = -2;
+		printf("%s : invalid mode (%d)\n", str, ret);
+		return ret;
+	}
+	if(p_param->ivlength != 16){
+		ret = -3;
+		printf("%s : ivlength isn't 16 (%d)\n", str, ret);
+		return ret;
+	}
+	return ret;
+}
+
 //ecb함수를 이용해 cbc방식 암호화를 구현
-I_LOCAL int enc_ecb_to_cbc(int p_cipher_id, //enc cbc_using_ecb
+I_LOCAL void enc_ecb_to_cbc(int p_cipher_id, //enc cbc_using_ecb
 	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,
@@ -58,7 +81,6 @@ I_LOCAL int enc_ecb_to_cbc(int p_cipher_id, //enc cbc_using_ecb
 	uint8_t* p_iv,
 	uint32_t    p_ivlength) {
 
-	int          ret = 0;
 	uint8_t      block[16]; //plain_text xor pre_enc_data
 	uint32_t     blocklength = 16; //block 길이
 	uint32_t     lastBlockLength = p_inputlength % blocklength;//블록단위로 나눈 후 남은 데이터 길이 ex) blocklength : 16, input : 33 -> lastBlockLength : 1
@@ -83,10 +105,9 @@ I_LOCAL int enc_ecb_to_cbc(int p_cipher_id, //enc cbc_using_ecb
 
 		dataIndex += blocklength; // 블록단위로 인덱스 갱신
 	}
-	return ret;
 }
 //ecb함수를 이용해 cbc방식 암호화를 구현
-I_LOCAL int dec_ecb_to_cbc(int p_cipher_id, //dec cbc_using_ecb
+I_LOCAL void dec_ecb_to_cbc(int p_cipher_id, //dec cbc_using_ecb
 	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,
@@ -95,7 +116,6 @@ I_LOCAL int dec_ecb_to_cbc(int p_cipher_id, //dec cbc_using_ecb
 	uint8_t* p_iv,
 	uint32_t    p_ivlength) {
 
-	int          ret = 0;
 	uint8_t      block[16];
 	uint32_t     blocklength = 16;
 	uint8_t      ecb_output[16] = { 0x00, };
@@ -117,9 +137,8 @@ I_LOCAL int dec_ecb_to_cbc(int p_cipher_id, //dec cbc_using_ecb
 
 		dataIndex += blocklength; // 블록단위로 인덱스 갱신
 	}
-
-	return ret;
 }
+
 //ctr모드에서 카운터 값을 증가시켜주는 함수
 I_LOCAL void i_inc_counter(uint8_t* counter, uint32_t counterlength){
 	//ctr is big-endian
@@ -130,8 +149,9 @@ I_LOCAL void i_inc_counter(uint8_t* counter, uint32_t counterlength){
 		if(carry == 0) return;
 	}
 }
+
 //ecb를 이용해 ctr모드 암호화를 구현
-I_LOCAL int enc_ctr_mode(int p_cipher_id,
+I_LOCAL void enc_ctr_mode(int p_cipher_id,
 	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,
@@ -140,7 +160,6 @@ I_LOCAL int enc_ctr_mode(int p_cipher_id,
 	uint8_t* p_counter,
 	uint32_t p_counterlength) {
 
-	int			 ret = 0;
 	uint8_t      block[16];
 	uint32_t     blocklength = 16;
 	uint8_t      ecb_output[16] = { 0x00, };
@@ -156,10 +175,10 @@ I_LOCAL int enc_ctr_mode(int p_cipher_id,
 		*p_outputlength += blocklength;
 		dataIndex += blocklength;
 	}
-	return ret;
 }
+
 //ecb를 이용해 ctr모드 복호화를 구현(암호화 함수와 동일합니다)
-I_LOCAL int dec_ctr_mode(int p_cipher_id,
+I_LOCAL void dec_ctr_mode(int p_cipher_id,
 	AES_KEY* p_key,
 	uint8_t* p_input,
 	uint32_t 	p_inputlength,
@@ -168,7 +187,6 @@ I_LOCAL int dec_ctr_mode(int p_cipher_id,
 	uint8_t* p_counter,
 	uint32_t p_counterlength) {
 
-	int			 ret = 0;
 	uint8_t      block[16];
 	uint32_t     blocklength = 16;
 	uint8_t      ecb_output[16] = { 0x00, };
@@ -183,7 +201,6 @@ I_LOCAL int dec_ctr_mode(int p_cipher_id,
 		*p_outputlength += blocklength;
 		dataIndex += blocklength;
 	}
-	return ret;
 }
 
 I_EXPORT int i_enc(int p_cipher_id,
@@ -202,28 +219,19 @@ I_EXPORT int i_enc(int p_cipher_id,
 	uint8_t		 lastBlockpreBlock[16];
 	uint8_t 	 counter[16] = {0x00, };
 
+	ret = check_parameters("i_enc", p_key, p_param, p_input, p_output);
+	if(ret != 0) return ret;
+
 	if (p_inputlength >= blocklength){
 		switch (p_param->mode) {
 		case I_CIPHER_MODE_CBC:
-			ret = enc_ecb_to_cbc(p_cipher_id, p_key, p_input, blocklength * (blockNum - 1), p_output, p_outputlength, p_param->iv, p_param->ivlength);
-			if (ret != 0) {
-				printf("i_enc %d", ret);
-				return ret;
-			}
+			enc_ecb_to_cbc(p_cipher_id, p_key, p_input, blocklength * (blockNum - 1), p_output, p_outputlength, p_param->iv, p_param->ivlength);
 			break;
 		case I_CIPHER_MODE_CTR:
 			//In the CTR Mode, iv is counter
 			memcpy(counter, p_param->iv, p_param->ivlength);
-			ret = enc_ctr_mode(p_cipher_id, p_key, p_input, blocklength * (blockNum - 1), p_output, p_outputlength, counter, p_param->ivlength);
-			if (ret != 0) {
-				printf("i_enc %d", ret);
-				return ret;
-			}
+			enc_ctr_mode(p_cipher_id, p_key, p_input, blocklength * (blockNum - 1), p_output, p_outputlength, counter, p_param->ivlength);
 			break;
-		default:
-			ret = -1;
-			printf("i_enc 지원하지 않는 운용모드 입니다. %d\n", ret);
-			return ret;
 		}
 	}
 
@@ -256,7 +264,7 @@ I_EXPORT int i_enc(int p_cipher_id,
 		break;
 	}
 	*p_outputlength += blocklength;
-	/*
+
 	//print_result
 	printf("\n##======================  enc start   ======================##\n");
 	hexdump("input", p_input, p_inputlength);
@@ -264,7 +272,7 @@ I_EXPORT int i_enc(int p_cipher_id,
 	printf("i_enc %d \n", ret);
 	hexdump("output", p_output, *p_outputlength);
 	printf("##======================    enc end    ======================##\n");
-	*/
+
 	return ret;
 }
 
@@ -285,27 +293,18 @@ I_EXPORT int i_dec(int p_cipher_id,
 	uint8_t		 lastBlockpreBlock[16];
 	uint8_t		 padding_value = 0;
 
+	ret = check_parameters("i_dec", p_key, p_param, p_input, p_output);
+	if(ret != 0) return ret;
+
 	switch (p_param->mode) {
 	case I_CIPHER_MODE_CBC:
-		ret = dec_ecb_to_cbc(p_cipher_id, p_key, p_input, p_inputlength, p_output, p_outputlength, p_param->iv, p_param->ivlength);
-		if (ret != 0) {
-			printf("i_dec %d\n", ret);
-			return ret;
-		}
+		dec_ecb_to_cbc(p_cipher_id, p_key, p_input, p_inputlength, p_output, p_outputlength, p_param->iv, p_param->ivlength);
 		break;
 	case I_CIPHER_MODE_CTR:
 		//In the CTR Mode, iv is counter
 		memcpy(counter, p_param->iv, p_param->ivlength);
-		ret = dec_ctr_mode(p_cipher_id, p_key, p_input, p_inputlength, p_output, p_outputlength, counter, p_param->ivlength);
-		if (ret != 0) {
-			printf("i_dec %d", ret);
-			return ret;
-		}
+		dec_ctr_mode(p_cipher_id, p_key, p_input, p_inputlength, p_output, p_outputlength, counter, p_param->ivlength);
 		break;
-	default:
-		ret = -1;
-		printf("i_dec 지원하지 않는 운용모드 입니다. %d\n", ret);
-		return ret;
 	}
 
 	//패딩제거
@@ -313,12 +312,12 @@ I_EXPORT int i_dec(int p_cipher_id,
 	for (int i = 0; i < padding_value; i++) {
 		if (p_output[*p_outputlength - 1 - i] != padding_value) {//패딩 값에 대한 유효성 검증(ex)if 키가 바뀌었다면 패딩 값이 달라져 에러)
 			ret = -1;
-			printf("i_dec %d\n", ret);
+			printf("i_dec failed check padding %d\n", ret);
 			return ret;
 		}
 	}
 	*p_outputlength -= p_output[*p_outputlength - 1];
-	/*
+
 	//print_result
 	printf("\n##======================  dec start   ======================##\n");
 	hexdump("input", p_input, p_inputlength);
@@ -326,7 +325,7 @@ I_EXPORT int i_dec(int p_cipher_id,
 	printf("i_dec %d\n", ret);
 	hexdump("output", p_output, *p_outputlength);
 	printf("##======================    dec end    ======================##\n");
-	*/
+
 	return ret;
 }
 
@@ -393,6 +392,9 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 	uint32_t	 index = 0;
 	uint32_t 	 remainDataStartIndex = 0;//암호화하거나 버퍼에 쌓을 input 데이터의 시작점
 	
+	ret = check_parameters("i_enc_update", &(p_context->key), &(p_context->param), p_input, p_output);
+	if(ret != 0) return ret;
+
 	*p_outputlength = 0;//update시 p_outputlength는 0으로 초기화
 	remainLength = p_inputlength;
 	index = p_context->bufferSize;
@@ -442,10 +444,6 @@ I_EXPORT int i_enc_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 			//counter 증가
 			i_inc_counter(p_context->param.iv, p_context->param.ivlength);
 			break;
-		default:
-			ret = -1;
-			printf("i_enc update : 지원하지 않는 운용모드 입니다. %d\n", ret);
-			return ret;
 		}
 		*p_outputlength += blocklength;//암호화가 되었다면 outputlength 증가
 	}
@@ -533,6 +531,9 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 	uint32_t	 index = 0;
 	uint32_t 	 remainDataStartIndex = 0;
 
+	ret = check_parameters("i_dec_update", &(p_context->key), &(p_context->param), p_input, p_output);
+	if(ret != 0) return ret;
+
 	*p_outputlength = 0;//update시 p_outputlength는 0으로 초기화
 	remainLength = p_inputlength;
 	index = p_context->bufferSize;
@@ -583,10 +584,6 @@ I_EXPORT int i_dec_update(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_
 			//counter 증가
 			i_inc_counter(p_context->param.iv, p_context->param.ivlength);
 			break;
-		default:
-			ret = -1;
-			printf("i_dec_update : 지원하지 않는 운용모드 입니다. %d\n", ret);
-			return ret;
 		}
 		*p_outputlength += blocklength; //복호화가 진행되었다면 outputlength 증가
 	}
@@ -624,6 +621,9 @@ I_EXPORT int i_enc_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t
 	uint32_t	 remainLength = 0;
 	uint32_t	 index = 0;
 
+	ret = check_parameters("i_enc_update_ex", &(p_context->key), &(p_context->param), p_input, p_output);
+	if(ret != 0) return ret;
+
 	*p_outputlength = 0;//update시 p_outputlength는 0으로 초기화
 	remainLength = p_inputlength;
 	index = p_context->bufferSize;
@@ -639,26 +639,22 @@ I_EXPORT int i_enc_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t
 		switch (p_context->param.mode) {
 		case I_CIPHER_MODE_CBC:
 			if(p_context->bufferSize == blocklength){
-				ret = enc_ecb_to_cbc(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
+				enc_ecb_to_cbc(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
 				p_context->bufferSize = 0;
 			}
 			if(remainLength >= blocklength)//버퍼가 비어있고 남은 데이터가 blocklength보다 길면
-				ret = enc_ecb_to_cbc(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength-remainLength), (remainLength/blocklength*blocklength), p_output + *p_outputlength, p_outputlength, p_context->param.iv, p_context->param.ivlength);			
+				enc_ecb_to_cbc(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength-remainLength), (remainLength/blocklength*blocklength), p_output + *p_outputlength, p_outputlength, p_context->param.iv, p_context->param.ivlength);			
 			for (int i = 0; i < blocklength; i++)//첫블록 이후 iv는 이전 암호문
 				p_context->param.iv[i] = p_output[*p_outputlength - blocklength + i];
 			break;
 		case I_CIPHER_MODE_CTR:
 			if (p_context->bufferSize == blocklength){
-				ret = enc_ctr_mode(p_context->cipher_id, (&p_context->key), p_context->buffer, blocklength, p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
+				enc_ctr_mode(p_context->cipher_id, (&p_context->key), p_context->buffer, blocklength, p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
 				p_context->bufferSize = 0;
 			}
 			if(remainLength >= blocklength)
-				ret = enc_ctr_mode(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + *p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
+				enc_ctr_mode(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + *p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
 			break;
-		default:
-			ret = -1;
-			printf("i_enc_update_ex 지원하지 않는 운용모드 입니다. %d\n", ret);
-			return ret;
 		}
 	}
 	remainLength %= blocklength;
@@ -678,6 +674,9 @@ I_EXPORT int i_dec_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t
 	uint32_t	 remainLength = 0;
 	uint32_t	 index = 0;
 
+	ret = check_parameters("i_dec_update_ex", &(p_context->key), &(p_context->param), p_input, p_output);
+	if(ret != 0) return ret;
+
 	*p_outputlength = 0;//update시 p_outputlength는 0으로 초기화
 	remainLength = p_inputlength;
 	index = p_context->bufferSize;
@@ -693,13 +692,13 @@ I_EXPORT int i_dec_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t
 		switch (p_context->param.mode) {
 		case I_CIPHER_MODE_CBC:
 			if (p_context->bufferSize == blocklength) {//우선 버퍼가 찼으면 버퍼부터 암호화
-				ret = dec_ecb_to_cbc(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
+				dec_ecb_to_cbc(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
 				for (int i = 0; i < blocklength; i++)//버퍼에 이전 암호문을 iv에 저장
 					p_context->param.iv[i] = p_context->buffer[i];
 				p_context->bufferSize = 0;
 			}
 			if(remainLength >= blocklength){
-				ret = dec_ecb_to_cbc(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + *p_outputlength, p_outputlength, p_context->param.iv, p_context->param.ivlength);
+				dec_ecb_to_cbc(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + *p_outputlength, p_outputlength, p_context->param.iv, p_context->param.ivlength);
 				for (int i = 0; i < blocklength; i++)//이전 암호문 저장
 					p_context->param.iv[i] = p_input[i + (p_inputlength - remainLength) + (remainLength / blocklength * blocklength) - blocklength];
 			}
@@ -708,18 +707,14 @@ I_EXPORT int i_dec_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t
 			break;
 		case I_CIPHER_MODE_CTR:
 			if (p_context->bufferSize == blocklength){//우선 버퍼가 찼으면 버퍼부터 암호화
-				ret = dec_ctr_mode(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
+				dec_ctr_mode(p_context->cipher_id, &(p_context->key), p_context->buffer, blocklength, p_output, p_outputlength, p_context->param.iv, p_context->param.ivlength);
 				p_context->bufferSize = 0;
 			}
 			if(remainLength >= blocklength)
-				ret = dec_ctr_mode(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + *p_outputlength, p_outputlength, p_context->param.iv, p_context->param.ivlength);
+				dec_ctr_mode(p_context->cipher_id, &(p_context->key), p_input + (p_inputlength - remainLength), (remainLength / blocklength * blocklength), p_output + *p_outputlength, p_outputlength, p_context->param.iv, p_context->param.ivlength);
 			for (int i = 0; i < blocklength; i++)//마지막 복호문 저장
 				p_context->lastDecBlock[i] = p_output[*p_outputlength - blocklength + i];
 			break;
-		default:
-			ret = -1;
-			printf("i_dec_update_ex 지원하지 않는 운용모드 입니다. %d\n", ret);
-			return ret;
 		}
 	}
 	remainLength %= blocklength;//최종 남은 데이터 길이

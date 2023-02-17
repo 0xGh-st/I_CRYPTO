@@ -28,32 +28,12 @@ int main(void) {
 	I_CIPHER_PARAMETERS  param;
 	uint8_t* input = "test text samplesample text testa";
 	uint32_t     inputlength = 33;
-	uint8_t buffer[32] = { '\0', };
 
-	//int option = 0;
-
-	// memset(&param, 0, sizeof(I_CIPHER_PARAMETERS));
-	// param.ivlength = 16;
-	// param.mode = I_CIPHER_MODE_CBC;
-	//select cbc or ctr
-	// while (option != 1 && option != 2) {
-	// 	printf("옵션 선택(1. CBC, 2. CTR) : ");
-	// 	scanf("%d", &option);
-	// }
-	// if (option == 1)
-	// 	param.m_mode = I_CIPHER_MODE_CBC;
-	// else
-	// 	param.m_mode = I_CIPHER_MODE_CTR;
-
-	//sample
 	ret = i_enc_dec_sample(input, inputlength, I_CIPHER_MODE_CBC);
+	if(ret != 0) return ret;
 	ret = i_init_update_final_sample(input, inputlength, I_CIPHER_MODE_CBC);
-	// if (ret != 0) return ret;
-	// ret = i_init_update_final_sample(input, inputlength, param.m_mode);
-	// if (ret != 0) return ret;
-	// ret = i_init_update_final_file_sample(param.m_mode);
-	// if (ret != 0) return ret;
-
+	if(ret != 0) return ret;
+	
 	return 0;
 }
 
@@ -138,10 +118,10 @@ int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode) {
 	
 	printf("\n\n===============================i_enc_dec_sample_start===================================\n\n");
 	
-	//기존 openssl을 이용한 암복호화 예시
-	// ret = origin_sample(cipher_id, &encKey, &decKey, p_input, p_inputlength, output, &outputlength, param.iv, param.ivlength, blockmode);
-	// if(ret != 0) return ret;
-	// printf("\n\n==================================================================\n\n");
+	//기존 openssl을 이용한 cbc 암복호화 예시
+	ret = origin_sample(cipher_id, &encKey, &decKey, p_input, p_inputlength, output, &outputlength, param.iv, param.ivlength, blockmode);
+	if(ret != 0) return ret;
+	printf("\n\n==================================================================\n\n");
 
 	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 암호화
 	ret = i_enc(cipher_id, &encKey, &param, p_input, p_inputlength, output2, &output2length);
