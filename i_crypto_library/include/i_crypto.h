@@ -1,9 +1,3 @@
-/**
-* @section Encoding
-* UTF-8
-* @author ybkim
-*/
-
 #ifndef __I_SYMMETRIC_H__
 #define __I_SYMMETRIC_H__
 #include <stdlib.h>
@@ -28,10 +22,10 @@ typedef unsigned int uint32_t;
 */
 I_EXPORT void hexdump(const char* title, void* mem, unsigned int len);
 
-/**
- * @brief 지원하는 암호 알고리즘
- */
 #define I_CIPHER_ID 0
+/**
+ * @brief 지원하는 암호 알고리즘, 현재 AES128만 지원합니다.
+ */
 #define I_CIPHER_ID_AES128 I_CIPHER_ID + 1
 
 /**
