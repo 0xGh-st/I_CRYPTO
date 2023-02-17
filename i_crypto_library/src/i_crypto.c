@@ -485,10 +485,6 @@ I_EXPORT int i_enc_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p
 		for (int i = 0; i < blocklength; i++)
 			p_output[i] ^= block[i];
 		break;
-	default:
-		ret = -1;
-		printf("i_enc_final 지원하지 않는 운용모드 입니다. %d\n", ret);
-		return ret;
 	}
 	*p_outputlength += blocklength;
 	return ret;

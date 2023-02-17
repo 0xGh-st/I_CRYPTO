@@ -264,7 +264,7 @@ I_EXPORT int i_enc(int p_cipher_id,
 		break;
 	}
 	*p_outputlength += blocklength;
-
+	/*
 	//print_result
 	printf("\n##======================  enc start   ======================##\n");
 	hexdump("input", p_input, p_inputlength);
@@ -272,7 +272,7 @@ I_EXPORT int i_enc(int p_cipher_id,
 	printf("i_enc %d \n", ret);
 	hexdump("output", p_output, *p_outputlength);
 	printf("##======================    enc end    ======================##\n");
-
+	*/
 	return ret;
 }
 
@@ -317,7 +317,7 @@ I_EXPORT int i_dec(int p_cipher_id,
 		}
 	}
 	*p_outputlength -= p_output[*p_outputlength - 1];
-
+	/*
 	//print_result
 	printf("\n##======================  dec start   ======================##\n");
 	hexdump("input", p_input, p_inputlength);
@@ -325,7 +325,7 @@ I_EXPORT int i_dec(int p_cipher_id,
 	printf("i_dec %d\n", ret);
 	hexdump("output", p_output, *p_outputlength);
 	printf("##======================    dec end    ======================##\n");
-
+	*/
 	return ret;
 }
 
@@ -485,10 +485,6 @@ I_EXPORT int i_enc_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p
 		for (int i = 0; i < blocklength; i++)
 			p_output[i] ^= block[i];
 		break;
-	default:
-		ret = -1;
-		printf("i_enc_final 지원하지 않는 운용모드 입니다. %d\n", ret);
-		return ret;
 	}
 	*p_outputlength += blocklength;
 	return ret;

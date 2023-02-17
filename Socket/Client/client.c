@@ -210,11 +210,7 @@ void* send_msg(ClientSockInfo* client){
 	msg_length = htonl(encDataLength);//보낼 데이터의 크기를 빅엔디안으로 저장
 	write(client->sock, &msg_length, sizeof(msg_length));//크기부터 보냄
 	write(client->sock, encData, encDataLength);//크기를 보낸 후 메세지를 보냄
-	//for test....
-	// msg[0] = client->name[strlen(client->name)-2];
-	// for(int i=1;i<99;i++)
-	// 	msg[i] = 'a' + (i%26);
-	// msg_length = 100;
+
 	while(1){
 		msg_length = 0;
 		memset(msg, 0 , BUF_SIZE);
@@ -232,8 +228,6 @@ void* send_msg(ClientSockInfo* client){
 			write(client->sock, encData, encDataLength);
 			client->flag = 1;
 			break;
-			//close(client->sock);
-			//exit(EXIT_SUCCESS);
 		}
 		sprintf(name_msg, "%s %s", client->name, msg);
 		i_enc(cipher_id, &encKey, &(client->param), name_msg, strlen(name_msg), encData, &encDataLength);
@@ -241,7 +235,6 @@ void* send_msg(ClientSockInfo* client){
 		write(client->sock, &msg_length, sizeof(msg_length));
 		write(client->sock, encData, encDataLength);
 	}
-
 	return NULL;
 }
 //서버로부터 받은 다른 클라이언트의 메시지를 복호화하여 콘솔에 출력
