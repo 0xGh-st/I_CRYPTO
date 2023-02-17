@@ -15,23 +15,18 @@
 
 * i_crypto_library
 > * 암복호화에 관련된 라이브러리 디렉토리 입니다.
-<hr/>
+
 
 * Doxygen
-> 1. i_crypto_library에서 제공하는 헤더 파일을 문서화하기 위한 파일이 들어있습니다.
-> > 2. 해당 디렉토리에서 doxygen i_crypto_conf 명령어를 입력하면 i_crypto_library/doc에 html디렉토리가 생성됩니다.
-> > > 3. 이 html 디렉토리의 index.html을 브라우저에서 열면 i_crypto_library에서 제공하는 함수들의 설명을 볼 수 있습니다.
-<hr/>
+> * i_crypto_library에서 제공하는 헤더 파일을 doxygen을 이용해 문서화하기 위한 파일이 들어있습니다.
 
 
 * OTPProject
 > * OTP의 생성과 검증에 대한 구현이 있는 디렉토리 입니다.
-<hr/>
 
 
 * Socket
-> * TLS방식을 모방하여 암호화된 통신을 지원하는 서버와 클라이언트에 대한 코드의 구현이 있는 디렉토리 입니다.
-<hr/>
+> * TLS방식을 모방하여 암호화된 통신을 지원하는 서버와 클라이언트에 대한 코드 구현이 있는 디렉토리 입니다.
 
 
 * jni

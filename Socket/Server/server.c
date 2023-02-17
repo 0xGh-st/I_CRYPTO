@@ -74,6 +74,7 @@ int main(int argc, char* argv[]){
 		client_public_keylength = recv_all(msg_length, clnt_sock, client_public_key);
 		if(msg_length != client_public_keylength || client_public_keylength == -1){
 			printf("main error, client_public_keylength : %d, msg_length : %d\n", client_public_keylength, msg_length);
+			close(clnt_sock);
 			return -1;
 		}
 		hexdump("client_public_key", client_public_key, client_public_keylength);
@@ -82,6 +83,7 @@ int main(int argc, char* argv[]){
 		ret = public_encrypt(key, keylength, client_public_key, encKey);
 		if(ret == -1){
 			printf("rsa enc failed...\n");
+			close(clnt_sock);
 			return ret;
 		}
 		encKeylength = ret;

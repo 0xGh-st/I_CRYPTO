@@ -10,7 +10,6 @@
 #endif
 #include <time.h>
 
-///////////////////////////////////////test_code///////////////////////////////////////////
 I_EXPORT void hexdump(const char* title, void* mem, unsigned int len){
 	unsigned int i = 0;
 	unsigned int j = 0;
@@ -49,7 +48,7 @@ typedef struct I_CIPHER_CTX{
 	uint8_t	 lastDecBlock[16];
 	I_CIPHER_PARAMETERS param;
 }I_CIPHER_CTX; 
-
+//ecb함수를 이용해 cbc방식 암호화를 구현
 I_LOCAL int enc_ecb_to_cbc(int p_cipher_id, //enc cbc_using_ecb
 	AES_KEY* p_key,
 	uint8_t* p_input,
@@ -86,7 +85,7 @@ I_LOCAL int enc_ecb_to_cbc(int p_cipher_id, //enc cbc_using_ecb
 	}
 	return ret;
 }
-
+//ecb함수를 이용해 cbc방식 암호화를 구현
 I_LOCAL int dec_ecb_to_cbc(int p_cipher_id, //dec cbc_using_ecb
 	AES_KEY* p_key,
 	uint8_t* p_input,
@@ -121,7 +120,7 @@ I_LOCAL int dec_ecb_to_cbc(int p_cipher_id, //dec cbc_using_ecb
 
 	return ret;
 }
-
+//ctr모드에서 카운터 값을 증가시켜주는 함수
 I_LOCAL void i_inc_counter(uint8_t* counter, uint32_t counterlength){
 	//ctr is big-endian
 	//openssl에서 16바이트 counter를 uint32(4바이트)단위로 4개씩 끊어 증가 시키기 때문에
@@ -131,7 +130,7 @@ I_LOCAL void i_inc_counter(uint8_t* counter, uint32_t counterlength){
 		if(carry == 0) return;
 	}
 }
-
+//ecb를 이용해 ctr모드 암호화를 구현
 I_LOCAL int enc_ctr_mode(int p_cipher_id,
 	AES_KEY* p_key,
 	uint8_t* p_input,
@@ -159,7 +158,7 @@ I_LOCAL int enc_ctr_mode(int p_cipher_id,
 	}
 	return ret;
 }
-
+//ecb를 이용해 ctr모드 복호화를 구현(암호화 함수와 동일합니다)
 I_LOCAL int dec_ctr_mode(int p_cipher_id,
 	AES_KEY* p_key,
 	uint8_t* p_input,
@@ -734,7 +733,8 @@ I_EXPORT int i_dec_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t
 
 
 //RSA 암복호화를 위한 함수
-int padding = RSA_PKCS1_PADDING;
+//코드출처 : https://gaeko-security-hack.tistory.com/126
+int padding = RSA_PKCS1_PADDING;//패딩방식
 
 I_LOCAL RSA * createRSA(unsigned char * key, int public){
     RSA *rsa= NULL;

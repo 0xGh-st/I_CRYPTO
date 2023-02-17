@@ -177,8 +177,29 @@ I_EXPORT int i_dec_update				(I_CIPHER_CTX* p_context,
  * @return int 성공시 0 실패시 그 외
 */
 I_EXPORT int i_dec_final				(I_CIPHER_CTX* p_context, 
-										uint32_t* p_paddinglength);
+										 uint32_t* p_paddinglength);
 
 
+/**
+ * @brief i_enc_update와 기능은 같으나 내부적으로 ecb가 아닌 cbc 함수로 작동한다.
+ * 
+*/
+I_EXPORT int i_enc_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_inputlength, uint8_t* p_output, uint32_t* p_outputlength);
+/**
+ * @brief i_dec_update와 기능은 같으나 내부적으로 ecb가 아닌 cbc 함수로 작동한다.
+ * 
+*/
+I_EXPORT int i_dec_update_ex(I_CIPHER_CTX* p_context, uint8_t* p_input, uint32_t p_inputlength, uint8_t* p_output, uint32_t* p_outputlength);
+
+
+//RSA 코드 출처 : https://gaeko-security-hack.tistory.com/126
+/**
+ * @brief RSA 공개키로 암호화 하는 함수
+ * @details 공개된 자료를 그대로 사용하였으므로 prefix i 키워드를 붙이지 않았습니다.
+*/
 I_EXPORT int public_encrypt(unsigned char * data,int data_len,unsigned char * key, unsigned char *encrypted);
+/**
+ * @brief RSA 개인키로 암호화 하는 함수
+ * @details 공개된 자료를 그대로 사용하였으므로 prefix i 키워드를 붙이지 않았습니다.
+*/
 I_EXPORT int private_decrypt(unsigned char * enc_data,int data_len,unsigned char * key, unsigned char *decrypted);

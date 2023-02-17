@@ -1,4 +1,4 @@
-# YBKim's OTP Project
+# OTP Project
 <hr/>
 
 
