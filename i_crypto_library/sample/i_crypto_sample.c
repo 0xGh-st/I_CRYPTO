@@ -16,16 +16,14 @@ int origin_sample(int 	p_cipher_id,
 	uint32_t    p_ivlength,
 	uint32_t	blockmode);
 
-//keyword 'i' is ybkim's signature
+//keyword 'i' is my signature
 int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode);
 int i_init_update_final_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode);
-//int i_init_update_final_file_sample(int blockmode);
 
 ///////////////////////////////////////////////main///////////////////////////////////////////////////////
 int main(void) {
 	int     ret = 0;
 
-	I_CIPHER_PARAMETERS  param;
 	uint8_t* input = "test text samplesample text testa";
 	uint32_t     inputlength = 33;
 

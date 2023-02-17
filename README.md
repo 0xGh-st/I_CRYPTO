@@ -35,6 +35,12 @@
 
 
 * 각 디렉토리 내부의 readme에서 해당 디렉토리의 상세한 설명을 볼 수 있습니다.
+<hr/>
+
+
+##### 참고자료
+> * 소켓 관련 : https://novice-programmer-story.tistory.com/38
+> * RSA 암복호화 관련 : https://gaeko-security-hack.tistory.com/126
 
 
 ### Thank You For Reading Me!!!
