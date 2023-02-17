@@ -461,6 +461,9 @@ I_EXPORT int i_enc_final(I_CIPHER_CTX* p_context, uint8_t* p_output, uint32_t* p
 	uint8_t      block[16]; 
 	uint32_t     blocklength = 16; 
 
+	ret = check_parameters("i_enc_final", &(p_context->key), &(p_context->param), p_output, p_output);
+	if(ret != 0) return ret;
+
 	*p_outputlength = 0;
 
 	//마지막 블록 패딩 처리
