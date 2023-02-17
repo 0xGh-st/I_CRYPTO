@@ -46,8 +46,8 @@ int main(void) {
 	// 	param.m_mode = I_CIPHER_MODE_CTR;
 
 	//sample
-	ret = i_enc_dec_sample(input, inputlength, I_CIPHER_MODE_CTR);
-	ret = i_init_update_final_sample(input, inputlength, I_CIPHER_MODE_CTR);
+	ret = i_enc_dec_sample(input, inputlength, I_CIPHER_MODE_CBC);
+	ret = i_init_update_final_sample(input, inputlength, I_CIPHER_MODE_CBC);
 	// if (ret != 0) return ret;
 	// ret = i_init_update_final_sample(input, inputlength, param.m_mode);
 	// if (ret != 0) return ret;
@@ -148,7 +148,6 @@ int i_enc_dec_sample(uint8_t* p_input, uint32_t p_inputlength, int blockmode) {
 	if (ret != 0) return ret;
 	printf("\n\n==================================================================\n\n");
 	
-	if(blockmode = I_CIPHER_MODE_CTR) memset(param.iv, 0, param.ivlength);//ctr모드이면 param의 iv를 원래 iv로 바꿔주어야 한다. 
 	//openssl에서 AES_ecb_encrypt만을 이용하여 직접 구현한 복호화
 	ret = i_dec(cipher_id, &decKey, &param, output2, output2length, decdata, &decdatalength);
 	if (ret != 0) return ret;
