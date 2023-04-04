@@ -9,7 +9,10 @@ int main(){
 
 	int ret = 0;
 
-	char key[64] = {0x00,};
+    char key[16] = {'a', 'b', 'c', 'd',
+                    'e', 'f', 'g', 'h',
+                    'i', 'j', 'k', 'l',
+                    'm', 'n', 'o', 'p'};
 	unsigned int keyLength = 0;
 	char serialNum[16] = {0x00, };
 	unsigned int serialNumDigit = 0;

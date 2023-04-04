@@ -1,5 +1,5 @@
 serialNumDigit 6
-keyLength 32
+keyLength 16
 otpDigit 6
 lifeTime 30
 mode 1

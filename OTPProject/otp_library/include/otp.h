@@ -14,7 +14,7 @@
 
 #define MIN_DIGIT 6
 #define MAX_DIGIT 16
-#define MIN_KEY_LENGTH 32
+#define MIN_KEY_LENGTH 16
 #define MAX_KEY_LENGTH 64
 #define STATIC_MODE 1
 #define DYNAMIC_MODE 2
