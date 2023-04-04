@@ -116,33 +116,57 @@ int main(int argc, char* argv[]){
 }
 //전송 받을 메시지의 크기를 먼저 받았을 때 그 크기만큼 데이터를 읽는 함수(recv함수가 한번에 모든 데이터를 다 안읽어왔을수도 있기 때문)
 int recv_all(int msg_length, int sock, uint8_t* buf){
-	int ret = 0;
+    int ret = 0;
 
-	time_t startTime = 0;
-	time_t currentTime = 0;
-	//5초동안 recv하지 못하면 timeout
-	time(&startTime);
-	while(ret != msg_length){
-		time(&currentTime);
-		if(currentTime-startTime>5) return -1;
-		ret += recv(sock, buf+ret, msg_length-ret, 0);
-	}
-	return ret;
+    // fd_set 구조체 초기화
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(sock, &read_fds);
+
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+
+    while (ret != msg_length) {
+        // select 함수 호출
+        int ready = select(sock + 1, &read_fds, NULL, NULL, &timeout);
+        if (ready < 0) {
+            return -1;
+        } else if (ready == 0) {
+            // 타임아웃 발생
+            return -1;
+        } else {
+            ret += recv(sock, buf+ret, msg_length-ret, 0);
+        }
+    }
+    return ret;
 }
 //전송 받을 메시지의 크기를 먼저 받았을 때 그 크기만큼 데이터를 읽는 함수(read함수가 한번에 모든 데이터를 다 안읽어왔을수도 있기 때문)
 int read_all(int msg_length, int sock, uint8_t* buf){
-	int ret = 0;
+    int ret = 0;
 
-	time_t startTime = 0;
-	time_t currentTime = 0;
-	//5초동안 read하지 못하면 timeout
-	time(&startTime);
-	while(ret != msg_length){
-		time(&currentTime);
-		if(currentTime-startTime>5) return -1;
-		ret += read(sock, buf+ret, msg_length-ret);
-	}
-	return ret;
+    // fd_set 구조체 초기화
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(sock, &read_fds);
+
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+
+    while (ret != msg_length) {
+        // select 함수 호출
+        int ready = select(sock + 1, &read_fds, NULL, NULL, &timeout);
+        if (ready < 0) {
+            return -1;
+        } else if (ready == 0) {
+            // 타임아웃 발생
+            return -1;
+        } else {
+            ret += read(sock, buf+ret, msg_length-ret);
+        }
+    }
+    return ret;
 }
 
 void* handle_clnt(void* arg){
